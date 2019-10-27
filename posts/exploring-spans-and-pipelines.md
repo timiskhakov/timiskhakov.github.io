@@ -34,11 +34,11 @@ We also have a  giant list of games somethere that we have to fetch and parse in
 ```
 38e27dea-1d7d-4279-be97-e29d53a8af89|F.E.A.R.|4|2005-10-18|90|False
 ```
-Meaning: it's a shooter called F.E.A.R. released in 18.10.2005 that has no multiplayer, but does have an ID and rating.
+Meaning: it's a shooter called F.E.A.R. released on 18.10.2005 that has no multiplayer, but does have an ID and rating.
 
 Say, a total number of lines in the file is 500 000. Our goal is to parse the file into a list of data structures located in the memory as fast as possible using as little memory as we can.
 
-(I created a file containing fake data with a simple data generator. If you are going to check out the source code, so, please don't be surprised about test data.)
+(I created a file containing fake data with a simple data generator. If you are going to check out the source code, please don't be surprised about test data.)
 
 ## First Approach
 
