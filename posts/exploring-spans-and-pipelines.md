@@ -1,4 +1,4 @@
-# Exploring `Span<T>` and `Pipelines`
+# Exploring Span<T> and Pipelines
 
 The other day I was working on a client project when I stumbled upon a ticket that required to move some functionality from an old legacy system to our .NET Core backend. The functionality itself was fetching a text file from the network, parsing it into application data structures, and saving them to the database. Sounds quite easy, doesn't it? So, I wrote some code that solved the problem and moved on...
 
@@ -110,7 +110,7 @@ public class FileParser : IFileParser
 ```
 Nice and clean! The code indeed solves the problem.
 
-## Introducing `Spans<T>`
+## Introducing Spans<T>
 
 Can we make the code above better? Well, it depends on what better is. Though, there is one thing that could possibly be improved. We do a lot of memory allocations as we work with strings. In order to reduce them let's introduce [`Span<T>`](https://docs.microsoft.com/en-us/dotnet/api/system.span-1), a new type that's allocated on the stack, and use it to write a new implementation of `IFileParser`:
 ```csharp
@@ -186,7 +186,7 @@ Well, the results are indeed positive, but to be honest, they are not that excit
 ```
 Well, that's something, if we are talking about memory consumption.
 
-## Introducing `Pipelines`
+## Introducing Pipelines
 
 There is still a problem with our code. Can you guess it? If you said that `LineParserSpans` still works with strings, you are absolutely right. Wouldn't it be faster to use `Parse(ReadOnlySpan<char> span)` from `LineParserSpans` skipping the string part? Indeed it would. Although, that requires us to break the existing contract and somehow extract a line from the file as `ReadOnlySpan<char>`.
 
