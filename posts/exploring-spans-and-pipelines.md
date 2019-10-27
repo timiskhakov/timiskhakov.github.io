@@ -177,7 +177,7 @@ Bear in mind, though, that your result might be different. Oh, speaking of the d
 | LineParserSpans | 581.2 ns | 12.61 ns | 17.68 ns | 0.0496 |     - |     - |     104 B |
 
 ```
-Well, the results are indeed positive, but to be honest, they are not that exciting, are they? But what about the big picture? Let's run some benchmarks on file parsers that use different line parsers:
+Well, the results are indeed positive, but to be honest, they are not that exciting, are they? But what about the big picture? Let's run some benchmarks on file parsers and feed our 500k line file to them:
 ```
 |                  Method |       Mean |    Error |   StdDev |       Gen 0 |      Gen 1 |     Gen 2 | Allocated |
 |------------------------ |-----------:|---------:|---------:|------------:|-----------:|----------:|----------:|
