@@ -284,7 +284,7 @@ Pretty good, huh?
 
 As they always say in performance related posts: please, don't rush to rewrite all your code in production using new cool libraries. Performance is a feature, not something that's given. Sometimes a current solution is good enough. But if speed is something you need in your applications, you might want to have a look at `Span<T>` and `Pipelines`.
 
-You can check out this code and do your own benchmarks based on it: https://github.com/timiskhakov/ExploringSpansAndPipelines.
+You can check out this code and do your own benchmarks based on it: [ExploringSpansAndPipelines](https://github.com/timiskhakov/ExploringSpansAndPipelines/).
 
 ## Further Reading
 
