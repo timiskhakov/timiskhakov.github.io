@@ -40,7 +40,7 @@ Say, a total number of lines in the file is 500 000. Our goal is to parse the fi
 
 (I created a file containing fake data with a simple data generator. If you are going to check out the source code, so, please don't be surprised about test data.)
 
-### First Approach
+## First Approach
 
 The problem is simple, right? First, let's try to write a naïve line parser first:
 ```csharp
@@ -110,7 +110,7 @@ public class FileParser : IFileParser
 ```
 Nice and clean! The code indeed solves the problem.
 
-### Introducing `Spans<T>`
+## Introducing `Spans<T>`
 
 Can we make the code above better? Well, it depends on what better is. Though, there is one thing that could possibly be improved. We do a lot of memory allocations as we work with strings. In order to reduce them let's introduce [`Span<T>`](https://docs.microsoft.com/en-us/dotnet/api/system.span-1), a new type that's allocated on the stack, and use it to write a new implementation of `IFileParser`:
 ```csharp
@@ -186,7 +186,7 @@ Well, the results are indeed positive, but to be honest, they are not that excit
 ```
 Well, that's something, if we are talking about memory consumption.
 
-### Introducing `Pipelines`
+## Introducing `Pipelines`
 
 There is still a problem with our code. Can you guess it? If you said that `LineParserSpans` still works with strings, you are absolutely right. Wouldn't it be faster to use `Parse(ReadOnlySpan<char> span)` from `LineParserSpans` skipping the string part? Indeed it would. Although, that requires us to break the existing contract and somehow extract a line from the file as `ReadOnlySpan<char>`.
 
@@ -280,15 +280,15 @@ Ok, it's time for final benchmarking:
 ```
 Pretty good, huh?
 
-### Conclusion
+## Conclusion
 
 As they always say in performance related posts: please, don't rush to rewrite all your code in production using new cool libraries. Performance is a feature, not something that's given. Sometimes a current solution is good enough. But if speed is something you need in your applications, you might want to have a look at `Span<T>` and `Pipelines`.
 
 You can check out this code and do your own benchmarks based on it: https://github.com/timiskhakov/ExploringSpansAndPipelines.
 
-### Further Reading
+## Further Reading
 
-- [Memory<T> and Span<T> usage guidelines](https://docs.microsoft.com/en-us/dotnet/standard/memory-and-spans/memory-t-usage-guidelines)
+- [Memory and Span usage guidelines](https://docs.microsoft.com/en-us/dotnet/standard/memory-and-spans/memory-t-usage-guidelines/)
 - [Span](https://adamsitnik.com/Span/)
 - [System.IO.Pipelines: High performance IO in .NET](https://devblogs.microsoft.com/dotnet/system-io-pipelines-high-performance-io-in-net/)
 - [System.IO.Pipelines — a little-known tool for lovers of high performance](https://habr.com/ru/post/466137/)
