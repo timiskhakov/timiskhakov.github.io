@@ -1,4 +1,4 @@
-# Exploring Span<T> and Pipelines
+# Exploring Spans and Pipelines
 
 The other day I was working on a client project when I stumbled upon a ticket that required to move some functionality from an old legacy system to our .NET Core backend. The functionality itself was fetching a text file from the network, parsing it into application data structures, and saving them to the database. Sounds quite easy, doesn't it? So, I wrote some code that solved the problem and moved on...
 
@@ -6,7 +6,7 @@ The other day I was working on a client project when I stumbled upon a ticket th
 
 ## Problem
 
-Let's make up a similar problem with a completely arbitrary domain. Say, we have an application that works with... I dunno, video games (I'm a bit into this topic, so, the domain is not really arbitrary). Imagine we have a model that descibes a video game as:
+Let's make up a similar problem with a completely arbitrary domain. Say, we have an application that works with... I dunno, video games (I'm a bit into this topic, so, the domain is not really arbitrary). Imagine we have a model that describes a video game as:
 ```csharp
 public class Videogame
 {
@@ -30,7 +30,7 @@ public enum Genres
   Strategy = 6
 }
 ```
-We also have a  giant list of games somethere that we have to fetch and parse into a bunch of classes described above. To make things simpler, imagine that "somewhere" is just a PSV file on a disk (that is, a pipe-separated file, just like CSV, but `|` instead of a comma). A video game is represented by a single line in the file:
+We also have a  giant list of games somewhere that we have to fetch and parse into a bunch of classes described above. To make things simpler, imagine that "somewhere" is just a PSV file on a disk (that is, a pipe-separated file, just like CSV, but with a pipe `|` instead of a comma). A video game is represented by a single line in the file:
 ```
 38e27dea-1d7d-4279-be97-e29d53a8af89|F.E.A.R.|4|2005-10-18|90|False
 ```
@@ -42,7 +42,7 @@ Say, a total number of lines in the file is 500 000. Our goal is to parse the fi
 
 ## First Approach
 
-The problem is simple, right? First, let's try to write a naïve line parser first:
+The problem is simple, right? First, let's try to write a naïve line parser:
 ```csharp
 public interface ILineParser
 {
@@ -112,7 +112,7 @@ Nice and clean! The code indeed solves the problem.
 
 ## Introducing Spans<T>
 
-Can we make the code above better? Well, it depends on what better is. Though, there is one thing that could possibly be improved. We do a lot of memory allocations as we work with strings. In order to reduce them let's introduce [`Span<T>`](https://docs.microsoft.com/en-us/dotnet/api/system.span-1), a new type that's allocated on the stack, and use it to write a new implementation of `IFileParser`:
+Can we make the code above better? Well, it depends on what better is. Though, there is at least one thing that could possibly be improved. We do a lot of memory allocations as we work with strings. In order to reduce them let's introduce [`Span<T>`](https://docs.microsoft.com/en-us/dotnet/api/system.span-1), a new type that's allocated on the stack, and use it to write a new implementation of `IFileParser`:
 ```csharp
 public class LineParserSpans : ILineParser
 {
@@ -177,7 +177,7 @@ Bear in mind, though, that your result might be different. Oh, speaking of the d
 | LineParserSpans | 581.2 ns | 12.61 ns | 17.68 ns | 0.0496 |     - |     - |     104 B |
 
 ```
-Well, the results are indeed positive, but to be honest, they are not that exciting, are they? But what about the big picture? Let's run some benchmarks on file parsers and feed our 500k line file to them:
+Well, the result is indeed positive, but to be honest, it is not that exciting, is it? But what about the big picture? Let's run some benchmarks on file parsers and feed our 500k line file to them:
 ```
 |                  Method |       Mean |    Error |   StdDev |       Gen 0 |      Gen 1 |     Gen 2 | Allocated |
 |------------------------ |-----------:|---------:|---------:|------------:|-----------:|----------:|----------:|
