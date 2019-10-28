@@ -160,7 +160,7 @@ public class LineParserSpans : ILineParser
   }
 }
 ```
-Alright, here things got a bit tricky. We still operate on a string representation of a video game, but instead of splitting it into mupltiple strings we create `Span<char>` out of it. After that we move from one pipe to another until the end creating a slice (that is, a part of the span) each time we move. Since we know the string format, we can rely on slice positions. Yes, it might look a bit clunky, but we [don't have](https://github.com/dotnet/corefx/issues/26528) something like `Split()` method on `Span<T>` as of now, so, we have to do it manually.
+Alright, here things got a bit tricky. We still operate on a string representation of a video game, but instead of splitting it into mupltiple strings we create `Span<char>` out of it. After that we move from one pipe to another until the end creating a slice (that is, a part of the span) each time we move. Since we know the string format, we can rely on slice positions. Yes, it might look a bit clunky, but we [don't have](https://github.com/dotnet/corefx/issues/26528) something like `Split()` method on `Span<T>` as of now, so, we have to do it manually.
 
 Another thing worth mentioning: we make `Parse(ReadOnlySpan<char> span)` public and static because we will need it a bit later.
 
@@ -190,13 +190,14 @@ Well, that's something, if we are talking about memory consumption.
 
 There is still a problem with our code. Can you guess it? If you said that `LineParserSpans` still works with strings, you are absolutely right. Wouldn't it be faster to use `Parse(ReadOnlySpan<char> span)` from `LineParserSpans` skipping the string part? Indeed it would. Although, that requires us to break the existing contract and somehow extract a line from the file as `ReadOnlySpan<char>`.
 
-In order to do that, let me bring yet another toy to the existing code — `System.IO.Pipelines`. It's a new library in the .NET world designed to do high performance IO. Kestrel, ASP.NET Core's web server, uses `System.IO.Pipelines` under the hood. The closest analog to Pipelines is streams, but Pipelines is faster as it uses `Span<T>` and its API is more clear.
+In order to do that, let me bring yet another toy to the existing code — `System.IO.Pipelines`. It's a new library in the .NET world designed to do high performance IO. Kestrel, ASP.NET Core's web server, uses `System.IO.Pipelines` under the hood. The closest analog to Pipelines is streams, but Pipelines is faster as it uses `Span<T>` and its API is more clear.
 
 But let's go back to our code. We will make a new implementation of `IFileParser` and here is what we will do:
 1. This time 'round we will read the file chunk by chunk, not string by string.
 2. We will store each chunk in a buffer represented by `ReadOnlySequence<byte>`.
 3. Then we will read lines from this buffer, also represented by `ReadOnlySequence<byte>`, and parse them into our `Videogame` model.
-4. We might have a situation when we have a line located between buffers: one part — at the end of one buffer, and another — at the beginning of the next buffer. `Pipelines` allows us to resolve such cases as well.
+4. We might have a situation when we have a line located between buffers: one part — at the end of one buffer, and another — at the beginning of the next buffer. Unlike streams, `Pipelines` does buffer management itself, which allows us to resolve such cases easily.
+5. To keep things simple we will use a default buffer size.
 
 Let's see how we can do all this:
 ```csharp
@@ -268,7 +269,7 @@ public class FileParserSpansAndPipes : IFileParser
 }
 ```
 
-So, we create a pipe connected to our good ol' friend `FileStream`. We read the file chunk by chunk until it ends. `TryReadLine` reads each chunk and finds where a line ends. Then we pass it to `ProcessSequence(ReadOnlySequence<byte> sequence)`. With that method, we check whether the sequence contains a whole line, or two parts of a line that came from different chunks. In the first case, we just parse the line. In the second case, we merge the parts into a new line, and then parse it. Bear in mind, before parsing we should convert `Span<byte>` into `Span<char>`. We do that in `Parse(ReadOnlySpan<byte> bytes)`.
+So, we create a pipe connected to our good ol' friend `FileStream`. Pipelines allows us to read the file chunk by chunk using a buffer. `TryReadLine` reads the buffer and finds lines. Then we pass each line to `ProcessSequence(ReadOnlySequence<byte> sequence)`. With that method, we check whether the sequence contains a whole line, or two parts of a line that came from different chunks. In the first case, we just parse the line. In the second case, we merge the parts into a new line, and then parse it. Bear in mind, before parsing we should convert `Span<byte>` into `Span<char>`. We do that in `Parse(ReadOnlySpan<byte> bytes)`.
 
 Ok, it's time for final benchmarking:
 ```
