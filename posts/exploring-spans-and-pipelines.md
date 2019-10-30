@@ -1,8 +1,8 @@
 # Exploring Spans and Pipelines
 
-The other day I was working on a client project when I stumbled upon a ticket that required to move some functionality from an old legacy system to our .NET Core backend. The functionality itself was fetching a text file from the network, parsing it into application data structures, and saving them to the database. Sounds quite easy, doesn't it? So, I wrote some code that solved the problem and moved on...
+The other day I was working on a client project when I stumbled upon a ticket that required me to move some functionality from an old legacy system to our .NET Core backend. The functionality itself was fetching a text file from the network, parsing it into application data structures, and saving them to the database. Sounds quite easy, doesn't it? So, I wrote some code that solved the problem and moved on...
 
-...Until later I started to dig into `Span<T>` and `Pipelines` and thought: heck, that text file parsing task is a good real life problem to try all these new shiny toys on!
+...until later I started to dig into `Span<T>` and `Pipelines` and thought: heck, that text file parsing task is a good real life problem to try all these shiny new toys on!
 
 ## Problem
 
@@ -36,9 +36,9 @@ We also have a  giant list of games somewhere that we have to fetch and parse in
 ```
 Meaning: it's a shooter called F.E.A.R. released on 18.10.2005 that has no multiplayer, but does have an ID and rating.
 
-Say, a total number of lines in the file is 500 000. Our goal is to parse the file into a list of data structures located in the memory as fast as possible using as little memory as we can.
+Let’s say there are 500 000 lines in this file in total. Our goal is to parse the file into a list of data structures located in the memory as fast as possible using as little memory as we can.
 
-(I created a file containing fake data with a simple data generator. If you are going to check out the source code, please don't be surprised about test data.)
+(I created a file containing fake data with a simple data generator. If you are going to check out the source code, don't be surprised by the test data.)
 
 ## First Approach
 
@@ -71,7 +71,7 @@ public class LineParser : ILineParser
   }
 }
 ```
-We would need the interface a bit later for the file parser. Also, important to note: since it's demo code, let's assume we only deal with ideal data and not bother with handling corner cases, catching possible exceptions, and validating models. (Although in real life we would do that, right? right?)
+We will need the interface a bit later for the file parser. Also, important to note: since it's demo code, let's assume we only deal with ideal data and not bother with handling corner cases, catching possible exceptions, and validating models. (Although in real life we would do that, right? ...right?)
 
 Second, we need something to read the file and feed each line to the line parser, so, let's write a simple file parser:
 ```csharp
@@ -112,7 +112,7 @@ Nice and clean! The code indeed solves the problem.
 
 ## Introducing Spans<T>
 
-Can we make the code above better? Well, it depends on what better is. Though, there is at least one thing that could possibly be improved. We do a lot of memory allocations as we work with strings. In order to reduce them let's introduce [`Span<T>`](https://docs.microsoft.com/en-us/dotnet/api/system.span-1), a new type that's allocated on the stack, and use it to write a new implementation of `IFileParser`:
+Can we make the code above better? Well, it depends on what "better" means. Though, there is at least one thing that could possibly be improved. We do a lot of memory allocation as we work with strings. In order to reduce them let's introduce [`Span<T>`](https://docs.microsoft.com/en-us/dotnet/api/system.span-1), a new type that's allocated on the stack, and use it to write a new implementation of `ILineParser`:
 ```csharp
 public class LineParserSpans : ILineParser
 {
@@ -125,6 +125,7 @@ public class LineParserSpans : ILineParser
 
   public static Videogame Parse(ReadOnlySpan<char> span)
   {
+    // Don't worry, we will increment this value in ParseChunk
     var scanned = -1;
     var position = 0;
     
@@ -160,7 +161,7 @@ public class LineParserSpans : ILineParser
   }
 }
 ```
-Alright, here things got a bit tricky. We still operate on a string representation of a video game, but instead of splitting it into mupltiple strings we create `Span<char>` out of it. After that we move from one pipe to another until the end creating a slice (that is, a part of the span) each time we move. Since we know the string format, we can rely on slice positions. Yes, it might look a bit clunky, but we [don't have](https://github.com/dotnet/corefx/issues/26528) something like `Split()` method on `Span<T>` as of now, so, we have to do it manually.
+All right, things got a bit tricky here. We still operate on a string representation of a video game, but instead of splitting it into multiple strings we create a `Span<char>` out of it. After that we move from one pipe to another until the end creating a slice (that is, a part of the span) each time we move. Since we know the string format, we can rely on slice positions. Yes, it might look a bit clunky, but we [don't have](https://github.com/dotnet/corefx/issues/26528) something like `Split()` method on `Span<T>` as of now, so we have to do it manually.
 
 Another thing worth mentioning: we make `Parse(ReadOnlySpan<char> span)` public and static because we will need it a bit later.
 
@@ -169,7 +170,7 @@ At this point we have two different line parser implementations — it's time t
 - Intel Core i7-7567U CPU 3.50GHz (Kaby Lake)
 - .NET Core SDK=3.0.100
 
-Bear in mind, though, that your result might be different. Oh, speaking of the devil, here is the result:
+Bear in mind, though, that your results might be different. Oh, speak of the devil, here is the result:
 ```
 |          Method |     Mean |    Error |   StdDev |  Gen 0 | Gen 1 | Gen 2 | Allocated |
 |---------------- |---------:|---------:|---------:|-------:|------:|------:|----------:|
@@ -188,12 +189,12 @@ Well, that's something, if we are talking about memory consumption.
 
 ## Introducing Pipelines
 
-There is still a problem with our code. Can you guess it? If you said that `LineParserSpans` still works with strings, you are absolutely right. Wouldn't it be faster to use `Parse(ReadOnlySpan<char> span)` from `LineParserSpans` skipping the string part? Indeed it would. Although, that requires us to break the existing contract and somehow extract a line from the file as `ReadOnlySpan<char>`.
+There is still a problem with our code. Can you guess what it is? If you said that `LineParserSpans` still works with strings, you are absolutely right. Wouldn't it be faster to use `Parse(ReadOnlySpan<char> span)` from `LineParserSpans` and skip the string part? Indeed it would. Although, that requires us to break the existing contract and somehow extract a line from the file as `ReadOnlySpan<char>`.
 
-In order to do that, let me bring yet another toy to the existing code — `System.IO.Pipelines`. It's a new library in the .NET world designed to do high performance IO. Kestrel, ASP.NET Core's web server, uses `System.IO.Pipelines` under the hood. The closest analog to Pipelines is streams, but Pipelines is faster as it uses `Span<T>` and its API is more clear.
+In order to do that, let me bring yet another toy to the existing code — `System.IO.Pipelines`. It's a new library in the .NET world designed for high performance IO. Kestrel, ASP.NET Core's web server, uses `System.IO.Pipelines` under the hood. Pipelines are similar to steams, but the Pipelines library is faster as it uses `Span<T>` and its API is clearer.
 
 But let's go back to our code. We will make a new implementation of `IFileParser` and here is what we will do:
-1. This time 'round we will read the file chunk by chunk, not string by string.
+1. This time 'round we will read the file chunk by chunk, instead of string by string.
 2. We will store each chunk in a buffer represented by `ReadOnlySequence<byte>`.
 3. Then we will read lines from this buffer, also represented by `ReadOnlySequence<byte>`, and parse them into our `Videogame` model.
 4. We might have a situation when we have a line located between buffers: one part — at the end of one buffer, and another — at the beginning of the next buffer. Unlike streams, `Pipelines` does buffer management itself, which allows us to resolve such cases easily.
@@ -208,12 +209,12 @@ public class FileParserSpansAndPipes : IFileParser
     var result = new List<Videogame>();
     using (var stream = File.OpenRead(file))
     {
-      var reader = PipeReader.Create(stream);
+      PipeReader reader = PipeReader.Create(stream);
       while (true)
       {
-        var read = await reader.ReadAsync();
-        var buffer = read.Buffer;
-        while (TryReadLine(ref buffer, out var sequence))
+        ReadResult read = await reader.ReadAsync();
+        ReadOnlySequence<byte> buffer = read.Buffer;
+        while (TryReadLine(ref buffer, out ReadOnlySequence<byte> sequence))
         {
           var videogame = ProcessSequence(sequence);
           result.Add(videogame);
@@ -253,8 +254,6 @@ public class FileParserSpansAndPipes : IFileParser
     
     Span<byte> span = stackalloc byte[(int)sequence.Length];
     sequence.CopyTo(span);
-    Span<char> chars = stackalloc char[span.Length];
-    Encoding.UTF8.GetChars(span, chars);
         
     return Parse(span);
   }
@@ -269,7 +268,9 @@ public class FileParserSpansAndPipes : IFileParser
 }
 ```
 
-So, we create a pipe connected to our good ol' friend `FileStream`. Pipelines allows us to read the file chunk by chunk using a buffer. `TryReadLine` reads the buffer and finds lines. Then we pass each line to `ProcessSequence(ReadOnlySequence<byte> sequence)`. With that method, we check whether the sequence contains a whole line, or two parts of a line that came from different chunks. In the first case, we just parse the line. In the second case, we merge the parts into a new line, and then parse it. Bear in mind, before parsing we should convert `Span<byte>` into `Span<char>`. We do that in `Parse(ReadOnlySpan<byte> bytes)`.
+So, we create a pipe connected to our good ol' friend `FileStream`. Pipelines allows us to read the file chunk by chunk using a buffer. `TryReadLine` reads the buffer and finds lines. Then we pass each line to `ProcessSequence(ReadOnlySequence<byte> sequence)`. With that method, we check whether the sequence contains a whole line, or two parts of a line that came from different chunks. In the first case, we just parse the line. In the second case, we merge the parts into a new line, and then parse it. Bear in mind, before parsing we should convert `Span<byte>` into `Span<char>`. We do that in `Parse(ReadOnlySpan<byte> bytes)`. (Remember that method in `LineParserSpans` we made public and static? We use it here.).
+
+While reading and parsing a chunk we have to tell Pipelines how much data we consumed and examined. We do it by calling `reader.AdvanceTo(buffer.Start, buffer.End)`. That way we allow Pipeline to do its buffer management.
 
 Ok, it's time for final benchmarking:
 ```
@@ -283,7 +284,7 @@ Pretty good, huh?
 
 ## Conclusion
 
-As they always say in performance related posts: please, don't rush to rewrite all your code in production using new cool libraries. Performance is a feature, not something that's given. Sometimes a current solution is good enough. But if speed is something you need in your applications, you might want to have a look at `Span<T>` and `Pipelines`.
+As they always say in performance related posts: please, don't rush to rewrite all your code in production using new cool libraries. Performance is a feature, not something that's given. Sometimes the current solution is good enough. But if speed or memory efficiency are something you need in your applications, you might want to have a look at `Span<T>` and `Pipelines`.
 
 You can check out this code and do your own benchmarks based on it: [ExploringSpansAndPipelines](https://github.com/timiskhakov/ExploringSpansAndPipelines/).
 
