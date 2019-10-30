@@ -180,10 +180,10 @@ Bear in mind, though, that your results might be different. Oh, speak of the dev
 ```
 Well, the result is indeed positive, but to be honest, it is not that exciting, is it? But what about the big picture? Let's run some benchmarks on file parsers and feed our 500k line file to them:
 ```
-|                  Method |       Mean |    Error |   StdDev |       Gen 0 |      Gen 1 |     Gen 2 | Allocated |
-|------------------------ |-----------:|---------:|---------:|------------:|-----------:|----------:|----------:|
-|              FileParser | 1,156.2 ms |  8.31 ms |  7.77 ms | 114000.0000 | 40000.0000 | 5000.0000 | 375.13 MB |
-|         FileParserSpans |   862.6 ms | 16.51 ms | 16.22 ms |  50000.0000 | 15000.0000 | 4000.0000 | 230.51 MB |
+|          Method |       Mean |    Error |   StdDev |       Gen 0 |      Gen 1 |     Gen 2 | Allocated |
+|---------------- |-----------:|---------:|---------:|------------:|-----------:|----------:|----------:|
+|      FileParser | 1,156.2 ms |  8.31 ms |  7.77 ms | 114000.0000 | 40000.0000 | 5000.0000 | 375.13 MB |
+| FileParserSpans |   862.6 ms | 16.51 ms | 16.22 ms |  50000.0000 | 15000.0000 | 4000.0000 | 230.51 MB |
 ```
 Well, that's something, if we are talking about memory consumption.
 
