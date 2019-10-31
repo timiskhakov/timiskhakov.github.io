@@ -191,7 +191,7 @@ Well, that's something, if we are talking about memory consumption.
 
 There is still a problem with our code. Can you guess what it is? If you said that `LineParserSpans` still works with strings, you are absolutely right. Wouldn't it be faster to use `Parse(ReadOnlySpan<char> span)` from `LineParserSpans` and skip the string part? Indeed it would. Although, that requires us to break the existing contract and somehow extract a line from the file as `ReadOnlySpan<char>`.
 
-In order to do that, let me bring yet another toy to the existing code — `System.IO.Pipelines`. It's a new library in the .NET world designed for high performance IO. Kestrel, ASP.NET Core's web server, uses `System.IO.Pipelines` under the hood. Pipelines are similar to steams, but the Pipelines library is faster as it uses `Span<T>` and its API is clearer.
+In order to do that, let me bring yet another toy to the existing code — `System.IO.Pipelines`. It's a new library in the .NET world designed for high performance IO. Kestrel, ASP.NET Core's web server, uses `System.IO.Pipelines` under the hood. Pipelines are similar to streams, but the Pipelines library is faster as it uses `Span<T>` and its API is clearer.
 
 But let's go back to our code. We will make a new implementation of `IFileParser` and here is what we will do:
 1. This time 'round we will read the file chunk by chunk, instead of string by string.
