@@ -36,7 +36,7 @@ We also have a  giant list of games somewhere that we have to fetch and parse in
 ```
 Meaning: it's a shooter called F.E.A.R. released on 18.10.2005 that has no multiplayer, but does have an ID and rating.
 
-Let’s say there are 500 000 lines in this file in total. Our goal is to parse the file into a list of data structures located in the memory as fast as possible using as little memory as we can.
+Let’s say there are 500 000 lines in this file in total, the maximum length of each line is 150 characters. Our goal is to parse the file into a list of data structures located in the memory as fast as possible using as little memory as we can.
 
 (I created a file containing fake data with a simple data generator. If you are going to check out the source code, don't be surprised by the test data.)
 
@@ -252,6 +252,7 @@ public class FileParserSpansAndPipes : IFileParser
       return Parse(sequence.FirstSpan);
     }
     
+    // This should be safe for our data as we have short lines
     Span<byte> span = stackalloc byte[(int)sequence.Length];
     sequence.CopyTo(span);
         
