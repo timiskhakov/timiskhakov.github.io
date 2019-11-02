@@ -204,6 +204,8 @@ Let's see how we can do all this:
 ```csharp
 public class FileParserSpansAndPipes : IFileParser
 {
+  private const int LengthLimit = 256;
+
   public async Task<List<Videogame>> Parse(string file)
   {
     var result = new List<Videogame>();
@@ -251,8 +253,13 @@ public class FileParserSpansAndPipes : IFileParser
     {
       return Parse(sequence.FirstSpan);
     }
+
+    var length = (int) sequence.Length;
+    if (length > LengthLimit)
+    {
+      throw new ArgumentException($"Line has a length exceeding the limit: {length}");
+    }
     
-    // This should be safe for our data as we have short lines
     Span<byte> span = stackalloc byte[(int)sequence.Length];
     sequence.CopyTo(span);
         
