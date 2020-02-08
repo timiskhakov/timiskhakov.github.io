@@ -132,6 +132,8 @@ Bare in mind that we compare two methods one of which is CPU-dependent, so, your
 
 We might use a really simple problem as an example to explore vectorized computation, but even in this case the final result is quite surprising. Of course, not all algorithms can use vectorization to speed things up. But even if you use one that can, please always measure your performance before doing any tweaks.
 
+You can check out this post's code on GitHub: [VectorizedComputationsAndSimd](https://github.com/timiskhakov/VectorizedComputationsAndSimd).
+
 ## Further Reading
 
 - [Parallelism on a Single Core - SIMD with C#](https://instil.co/2016/03/21/parallelism-on-a-single-core-simd-with-c/)
