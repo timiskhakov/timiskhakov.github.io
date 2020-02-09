@@ -14,13 +14,13 @@ How would we approach the problem? Perhaps you already wrote some code in your m
 ```csharp
 public static int NaiveSum(int[] array)
 {
-	var result = 0;
-	for (var i = 0; i < array.Length; i++)
-	{
-		result += array[i];
-	}
+  var result = 0;
+  for (var i = 0; i < array.Length; i++)
+  {
+    result += array[i];
+  }
 
-	return result;
+  return result;
 }
 ```
 (Another option would be using LINQ by writing `array.Sum()`, but as we know when dealing with arrays LINQ might not be a very good tool as it brings the whole `IEnumerable` infrastructure along. In this case, exposing the enumerator and checking for the next available element make things slow.)
@@ -57,7 +57,7 @@ var array2 = new[] {1, 2, 3, 4, 5, 6, 7, 8};
 var result1 = new int[array1.Length];
 for (var i = 0; i < result1.Length; i++)
 {
-	result1[i] = array1[i] + array2[i];
+  result1[i] = array1[i] + array2[i];
 }
 
 // Part 2: trying to do the same thing, but with vectors
@@ -86,25 +86,25 @@ Coming back to our problem with the knowledge we obtained, let's write a new met
 ```csharp
 public static int SimdSum(int[] array)
 {
-	var vector = Vector<int>.Zero;
-	var i = 0;
-	for (; i <= array.Length - Vector<int>.Count; i += Vector<int>.Count)
-	{
-		vector += new Vector<int>(array, i);
-	}
+  var vector = Vector<int>.Zero;
+  var i = 0;
+  for (; i <= array.Length - Vector<int>.Count; i += Vector<int>.Count)
+  {
+    vector += new Vector<int>(array, i);
+  }
 
-	var result = 0;
-	for (var j = 0; j < Vector<int>.Count; j++)
-	{
-		result += vector[j];
-	}
+  var result = 0;
+  for (var j = 0; j < Vector<int>.Count; j++)
+  {
+    result += vector[j];
+  }
 
-	for (; i < array.Length; i++)
-	{
-		result += array[i];
-	}
+  for (; i < array.Length; i++)
+  {
+    result += array[i];
+  }
 
-	return result;
+  return result;
 }
 ```
 Here we do a couple of things to split processing into vectors:
