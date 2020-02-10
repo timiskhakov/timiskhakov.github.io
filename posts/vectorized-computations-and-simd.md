@@ -1,12 +1,12 @@
 # Vectorized Computations and SIMD
 
-Recently I've been searching for ways to improve the performance of my never-to-be-released roguelike game. I make it in my spare time purely for the sake of programming and my own entertainment, so I often diverge into performance-related bikeshedding. This time, though, I stumbled upon vectorized computations and SIMD to speed up some array-based algorithms.
+Recently I've been searching for ways to improve the performance of my never-to-be-released roguelike game. I make it in my spare time purely for the sake of programming and my own entertainment, so I often diverge into performance-related bikeshedding. This time I stumbled upon vectorized computations and SIMD to speed up some array-based algorithms in the game.
 
 Before diving into the topic let's try to come up with the simplest problem we could apply this solution to.
 
 ## Problem
 
-For the sake of demo I try to keep things as simple as possible, so let's compute a sum of a large array of integers, the larger the better. Yeah, I know, the problem itself doesn't sound that exciting but bear with me, you might be surprised in the end. Besides, making fast things even faster is fun in itself, isn't it?
+For the sake of demo I try to keep things as simple as possible, so let's compute a sum of a large array of integers, the larger the better. Yeah, I know, the problem itself doesn't sound that exciting but bear with me, you might be surprised in the end. Besides, making fast things even faster is always fun, isn’t it?
 
 ## Naïve Solution
 
@@ -42,13 +42,13 @@ Combining elements into a vector and replacing two operations with one.
 
 Modern processors can do a quite similar thing that's called SIMD, which stands for single instruction, multiple data. SSE (Streaming SIMD Extensions) that implements this feature is an instruction set extension that was introduced by Intel in their Pentium 3 processor in 1999. It allowed programmers to operate on vectors containing 64 bits of data producing a result of the same size. That is, we could fit two integer values, each having a size of 32 bits, into a single vector.
 
-Over time every new processor model produced a more powerful instruction set bringing new extensions: SSE2, SSE3 and so on. Nowadays modern CPUs have AVX (or Advanced Vector Extensions) allowing to operate on vectors that have a size of 256 bits.
+Over time every new processor model brought along a more powerful extension: SSE2, SSE3 and so on. Nowadays modern CPUs have AVX (or Advanced Vector Extensions) allowing to operate on vectors that have a size of 256 bits.
 
-The approach of doing parallel computations on a single core is not new for other programming languages, but in our .NET world, it has appeared starting from .NET Framework 4.6 in 2015.
+The approach of doing parallel computations on a single core is not new for other programming languages, but in our .NET world it has appeared starting from .NET Framework 4.6 in 2015.
 
 We can reach the SIMD-enabled types through `System.Numerics` namespace. Even if our hardware doesn't support SIMD instructions, the types provide a software fallback. The type we are most interested in is `Vector<T>`. Its size depends on `T`. Since we have only 256 bits at our disposal we can pack 16 `byte`s, or 8 `int`s, or 4 `double`s into a single vector.
 
-But before we go any further with our example, let's explore how vectors work under the hood. We will write a simple example in which we add together two arrays containing 8 integers:
+Before we go any further with our example, let's explore how vectors work under the hood. We will write a simple example in which we add together two arrays containing 8 integers:
 ```csharp
 var array1 = new[] {1, 2, 3, 4, 5, 6, 7, 8};
 var array2 = new[] {1, 2, 3, 4, 5, 6, 7, 8};
