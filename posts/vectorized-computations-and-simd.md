@@ -23,7 +23,7 @@ public static int NaiveSum(int[] array)
   return result;
 }
 ```
-(Another option would be using LINQ by writing `array.Sum()`, but as you might know when dealing with arrays of numbers LINQ might not be a very good tool as it brings the whole `IEnumerable` infrastructure along. In this case, exposing the enumerator and checking for the next available element make things slow.)
+(Another option would be using LINQ by writing `array.Sum()`, but as you might know when dealing with arrays LINQ might not be a very good tool as it brings the whole `IEnumerable` infrastructure along. In this case, exposing the enumerator and checking for the next available element make things slow.)
 
 Writing production-ready code, we usually stop here as this solution is just good enough in nearly all cases. However, sometimes we really need to gain some speed preferably without plunging into a swirl of unmanaged code. Let me introduce vectorized computations.
 
