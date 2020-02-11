@@ -6,7 +6,7 @@ Before diving into the topic let's try to come up with the simplest problem we c
 
 ## Problem
 
-For the sake of demo I try to keep things as simple as possible, so let's compute a sum of a large array of integers, the larger the better. Yeah, I know, the problem itself doesn't sound that exciting but bear with me, you might be surprised in the end. Besides, making fast things even faster is always fun, isn’t it?
+For the sake of demo I try to keep things as simple as possible. Imagine we want to sum a bunch of numbers. That's what we do every day, right? Ok, maybe not, but it's a good example to demonstrate optimizations that vectors can provide, you might be surprised in the end. Besides, making fast things even faster is always fun, isn’t it?
 
 ## Naïve Solution
 
@@ -23,7 +23,7 @@ public static int NaiveSum(int[] array)
   return result;
 }
 ```
-(Another option would be using LINQ by writing `array.Sum()`, but as we know when dealing with arrays LINQ might not be a very good tool as it brings the whole `IEnumerable` infrastructure along. In this case, exposing the enumerator and checking for the next available element make things slow.)
+(Another option would be using LINQ by writing `array.Sum()`, but as you might know when dealing with arrays of numbers LINQ might not be a very good tool as it brings the whole `IEnumerable` infrastructure along. In this case, exposing the enumerator and checking for the next available element make things slow.)
 
 Writing production-ready code, we usually stop here as this solution is just good enough in nearly all cases. However, sometimes we really need to gain some speed preferably without plunging into a swirl of unmanaged code. Let me introduce vectorized computations.
 
@@ -46,9 +46,9 @@ Over time every new processor model brought along a more powerful extension: SSE
 
 The approach of doing parallel computations on a single core is not new for other programming languages, but in our .NET world it has appeared starting from .NET Framework 4.6 in 2015.
 
-We can reach the SIMD-enabled types through `System.Numerics` namespace. Even if our hardware doesn't support SIMD instructions, the types provide a software fallback. The type we are most interested in is `Vector<T>`. Its size depends on `T`. Since we have only 256 bits at our disposal we can pack 16 `byte`s, or 8 `int`s, or 4 `double`s into a single vector.
+We can reach the SIMD-enabled types through `System.Numerics` namespace. Even if our hardware doesn't support SIMD instructions, the types provide a software fallback. The type we are most interested in is `Vector<T>`. Its size depends on `T`. Since we only have 256 bits at our disposal we can pack 16 `byte`s, or 8 `int`s, or 4 `double`s into a single vector.
 
-Before we go any further with our example, let's explore how vectors work under the hood. We will write a simple example in which we add together two arrays containing 8 integers:
+Before we go any further with our demo problem, let's explore how vectors work under the hood. We will write a simple example in which we add together two arrays containing 8 integers:
 ```csharp
 var array1 = new[] {1, 2, 3, 4, 5, 6, 7, 8};
 var array2 = new[] {1, 2, 3, 4, 5, 6, 7, 8};
@@ -62,9 +62,11 @@ for (var i = 0; i < result1.Length; i++)
 
 // Part 2: trying to do the same thing, but with vectors
 var result2 = new int[array1.Length];
-(new Vector<int>(array1) + new Vector<int>(array2)).CopyTo(result2);
+var vectorA = new Vector<int>(array1);
+var vectorB = new Vector<int>(array2);
+(vectorA + vectorB).CopyTo(result2);
 ```
-If we open the assembly code produced by the first part, we can see that we loop over the following instructions 8 times:
+If we open the assembly code produced by the first part, we can see that we loop over the following instructions 8 times (I omitted the loop instructions for clarity):
 ```assembly
 mov     r9d, dword ptr [...]    ; obtaining a value from array1
 mov     r10d, dword ptr [...]   ; obtaining a value from array2
@@ -86,25 +88,25 @@ Coming back to our problem with the knowledge we obtained, let's write a new met
 ```csharp
 public static int SimdSum(int[] array)
 {
-  var vector = Vector<int>.Zero;
+  var sumVector = Vector<int>.Zero;
   var i = 0;
   for (; i <= array.Length - Vector<int>.Count; i += Vector<int>.Count)
   {
-    vector += new Vector<int>(array, i);
+    sumVector += new Vector<int>(array, i);
   }
 
-  var result = 0;
+  var sum = 0;
   for (var j = 0; j < Vector<int>.Count; j++)
   {
-    result += vector[j];
+    sum += sumVector[j];
   }
 
   for (; i < array.Length; i++)
   {
-    result += array[i];
+    sum += array[i];
   }
 
-  return result;
+  return sum;
 }
 ```
 Here we do a couple of things to split processing into vectors:
@@ -113,12 +115,15 @@ Here we do a couple of things to split processing into vectors:
 3. Then we summarize all the elements residing in the vector result into a scalar integer result.
 4. Since our input array can have a length not divided evenly by the vector size, we have to deal with the remaining elements. We just add each element to the final result.
 
-Let's compare two methods that we wrote so far trying to find a sum of an array of 1 million integers each having a value from 1 to 1000 (as always I use [`BenchmarkDotNet`](https://github.com/dotnet/BenchmarkDotNet)):
+![Vector solution](/images/vectorized-computations-and-simd-vector-solution.jpg)
+
+Let's compare methods that we wrote so far trying to find a sum of an array of 1 million integers each having a value from 1 to 1000 (as always I use [`BenchmarkDotNet`](https://github.com/dotnet/BenchmarkDotNet)). I also included the LINQ-based method `array.Sum()` for the sake of comparison:
 ```
-|   Method |        Mean |     Error |    StdDev |      Median |
-|--------- |------------:|----------:|----------:|------------:|
-| NaiveSum |   474.61 us |  3.327 us |  2.949 us |   473.74 us |
-|  SimdSum |    79.79 us |  2.317 us |  6.795 us |    76.83 us |
+|   Method |        Mean |     Error |    StdDev |
+|--------- |------------:|----------:|----------:|
+|  LinqSum | 4,583.39 us | 21.706 us | 20.304 us |
+| NaiveSum |   484.02 us |  3.759 us |  3.332 us |
+|  SimdSum |    81.87 us |  1.568 us |  1.743 us |
 ```
 The spec I ran this benchmark under:
 - macOS 10.15.2
