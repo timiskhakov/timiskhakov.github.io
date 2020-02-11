@@ -130,7 +130,7 @@ The spec I ran this benchmark under:
 - Intel Core i7-8569U CPU 2.80GHz (Coffee Lake)
 - .NET Core SDK=3.1.100
 
-Bear in mind, though, we compare two methods, one of which is CPU-dependent, so your result might be very different.
+Bear in mind, though, we compare methods, one of which is CPU-dependent, so your result might be very different.
 
 ## Conclusion
 
