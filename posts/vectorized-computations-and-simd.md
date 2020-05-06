@@ -75,10 +75,10 @@ mov     dword, ptr [...]        ; save the result to result1
 ```
 While for the second part we only have:
 ```assembly
-vmovupd ymm0, ymmword ptr       ; load array1 into the first vector
-vmovupd ymm1, ymmword ptr       ; load array2 into the second vector
+vmovdqu ymm0, ymmword ptr       ; load array1 into the first vector
+vmovdqu ymm1, ymmword ptr       ; load array2 into the second vector
 vpaddd  ymm0, ymm0, ymm1        ; perform addition on two vectors
-vmovupd ymmword ptr [...], ymm0 ; copy the vector to the array
+vmovdqu ymmword ptr [...], ymm0 ; copy the vector to the array
 ```
 So, we just replaced a loop that repeats a bunch of instructions 8 times with just a few instructions. Hence, the name "single instruction, multiple data" and also that's why sometimes people call vectorized computations "parallelization on a single processor".
 
