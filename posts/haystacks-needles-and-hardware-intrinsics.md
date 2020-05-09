@@ -72,10 +72,10 @@ We will do benchmarking to check which one is faster at the end of the post. In 
 For our solution, we will use an algorithm described in Wojciech Muła's [SIMD-friendly algorithms for substring searching](http://0x80.pl/articles/simd-strfind.html#algorithm-1-generic-simd). It's based on the naive string-search algorithm that's modified for SIMD usage.
 
 1. We load the first and last characters of the needle into `needleFirst` and `needleLast` vectors.
-2. We go through the haystack block by block. With each iteration, we’re loading data into two vectors: the first one starts with the beginning of the block, the second one starts with the offset of the needle length minus one. We call them `blockFirst` and `blockLast`.
+2. We go through the haystack block by block. A block has the same size as a vector. With each iteration, we’re loading data into two vectors: the first one starts with the beginning of the block, the second one starts with the offset of the needle length minus one. We call them `blockFirst` and `blockLast`.
 3. Next, we compare `needleFirst` with `blockFirst`, and `needleLast` with `blockLast`, storing results into `matchFirst` and `matchLast` respectively.
 4. Then we perform the bitwise AND operation and save it to the `and` vector.
-5. Finally, we compute the mask of `and`. If the mask is equal to `0`, there is no match found, we carry on processing next block. Otherwise, we have potential candidates. For each mask's bit set to `1`, we extract its position, calculate the first and last indices of the potential candidate within the haystack, and perform candidate's character by character comparison against the needle.
+5. Finally, we compute the mask of `and`. If the mask is equal to `0`, there is no match found, we carry on processing the next block. Otherwise, we have potential candidates. For each mask's bit set to `1`, we extract its position, calculate the first and last indices of the candidate within the haystack, and perform candidate's character by character comparison against the needle.
 
 It might sound complex, but let's try it out on an example and see that it's actually a quite simple approach. Say, we have this string as a haystack: `cake is a lie`. The needle we are looking for is the word `is`.
 
@@ -142,7 +142,7 @@ public static unsafe int IndexOf(string haystack, string needle)
 }
 ```
 
-We pin both strings, the haystack and the needle, in the memory to obtain their pointers. According to the algorithm we create two vectors `needleFirst` and `needleLast` that contain the needle's first and last characters respectively. Please note that we get `Vector256<ushort>` out of the `Create` method, not `Vector256<char>`, because vectors can only store integral and floating-point numeric types.
+We pin both strings, the haystack and the needle, in the memory to obtain their pointers. According to the algorithm we create two vectors `needleFirst` and `needleLast` that contain the needle's first and last characters respectively. Please note that we get `Vector256<ushort>` out of the `Create` method, not `Vector256<char>`, because vectors can only store integral and floating-point numeric types. Unlike the example above we use AVX vectors containing 256-bits of data, or 16 `ushort`s.
 
 We go through the haystack vector by vector. With each iteration, we load haystack data into `blockFirst` and `blockLast`, trying to find a match and computing the mask. Unlike the C++ implementation, though, we have to do a few tricks with the mask in C#.
 
@@ -228,7 +228,7 @@ Time to compare all the implementations we gathered throughout this post:
 
 In the [Intel Intrinsics Guide](https://software.intel.com/sites/landingpage/IntrinsicsGuide/), each intrinsic has Latency and Throughput characteristics that depend on the CPU architecture. The former means how long it takes for the CPU to complete the instruction, the latter has to do with how many operations we can perform at once, each of them being in the different execution phase. For instance, `_mm256_loadu_si256` that we were using for loading data into a vector, has the latency of 1 and the throughput of 0.25 on the Haswell architecture. Meaning, we can run up to 4 instructions per 1 CPU cycle. We don't necessarily get the x4 performance because we are unlikely to have optimal conditions. This optimization applies to small loops only, so it should be suitable for our case. Using this knowledge and knowing our CPU architecture, we can unroll some vector instructions in the main block loop expecting at least some performance benefit.
 
-According to Intel's [Developer Guide and Reference](https://software.intel.com/content/www/us/en/develop/documentation/cpp-compiler-developer-guide-and-reference/top/compiler-reference/intrinsics/data-alignment-memory-allocation-intrinsics-and-inline-assembly/alignment-support.html#alignment-support) aligning data should also improve the performance of intrinsics. In our code, we are not aware of memory alignment. Dealing with it, though, is not an easy job, but still doable. For example, we could search for the first aligned element and start with it processint previous elements without vectors. Applying this optimization we could use `LoadAlignedVector256` function. It gets translated to the `_mm256_load_si256` intrinsic which verifies that data is aligned.
+According to Intel's [Developer Guide and Reference](https://software.intel.com/content/www/us/en/develop/documentation/cpp-compiler-developer-guide-and-reference/top/compiler-reference/intrinsics/data-alignment-memory-allocation-intrinsics-and-inline-assembly/alignment-support.html#alignment-support) aligning data should also improve the performance of intrinsics. In our code, we are not aware of memory alignment. Dealing with it, though, is not an easy job, but still doable. For example, we could search for the first aligned element and start with it processing previous elements without vectors. Applying this optimization we could use `LoadAlignedVector256` function. It gets translated to the `_mm256_load_si256` intrinsic which verifies that data is aligned.
 
 ## Conclusion
 
