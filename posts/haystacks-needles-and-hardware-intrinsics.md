@@ -1,6 +1,6 @@
 # Haystacks, Needles, and Hardware Intrinsics
 
-In [the previous post](/posts/vectorized-computations-and-simd), we have explored SIMD-enabled types, such as vectors, provided by the `System.Numerics` namespace. They allow us to vectorize some array-based algorithms to speed up their performance. However, since we were running code on .NET Core 3.1, we kinda ignored the elephant in the room — hardware intrinsics. Hardware intrinsics are special functions that are converted into CPU specific instructions. They provide us with the same functionality as vectors from `System.Numerics` giving more flexibility, plus they expose additional instructions we can leverage on. Starting from .NET Core 3.0 hardware intrinsics are available under the `System.Runtime.Intrinsics` namespace.
+In [the previous post](/posts/vectorized-computations-and-simd), we have explored SIMD-enabled types, such as vectors, provided by the `System.Numerics` namespace. They allow us to vectorize some array-based algorithms to speed up performance. However, since we were running code on .NET Core 3.1, we kinda ignored the elephant in the room — hardware intrinsics. Hardware intrinsics are special functions that are converted into CPU-specific instructions. They provide us with the same functionality as vectors from `System.Numerics` giving more flexibility and exposing additional instructions we can leverage on. Starting from .NET Core 3.0 hardware intrinsics are available under the `System.Runtime.Intrinsics` namespace.
 
 Remember this example from the previous post?
 ```csharp
@@ -19,7 +19,7 @@ vpaddd  ymm0, ymm0, ymm1        ; perform addition on two vectors
 vmovdqu ymmword ptr [...], ymm0 ; copy the vector to the array
 ```
 
-Using hardware intrinsics we can write same code like that:
+Using intrinsics we can write same code like this:
 ```csharp
 var result = new int[8];
 
@@ -34,9 +34,9 @@ fixed (int* pResult = result)
 }
 ```
 
-First two `Avx.LoadVector256` are converted into the `_mm256_loadu_si256` intrinsic which, according to the [Intel Intrinsics Guide](https://software.intel.com/sites/landingpage/IntrinsicsGuide/), translates to the `vmovdqu` instruction. Then `Avx2.Add` converts into `_mm256_add_epi32` that's doing vector addition via `vpaddd`. Finally, we store the result into the memory using the `_mm256_storeu_si256` intrinsic that gets translated to `vmovdqu`.
+First two `Avx.LoadVector256` are converted into the `_mm256_loadu_si256` intrinsic which, according to the [Intel Intrinsics Guide](https://software.intel.com/sites/landingpage/IntrinsicsGuide/), translates to the `vmovdqu` instruction. Then `Avx2.Add` converts into `_mm256_add_epi32` that adds vectors together via `vpaddd`. Finally, we store the result into the memory using the `_mm256_storeu_si256` intrinsic that gets translated to `vmovdqu`. As you might have noticed, here we got the same instructions as in the example above.
 
-One of the benefits of using intrinsics is the ability to choose which instruction set to use. For instance, here are exploiting AVX2 because we perform addition on 256-bits of integer data having 8 elements per vector, but we also can pick other instruction sets if we want to use smaller vectors, for example:
+One of the benefits of using intrinsics is the ability to choose which instruction set to use. For instance, here we are exploiting AVX2 because we perform addition on 256-bits of integer data with 8 elements per vector, although, nothing stops us from choosing a different instruction set if we want to use smaller vectors, for example:
 ```csharp
 fixed (int* pArray = new[] {1, 2, 3, 4})
 {
@@ -44,19 +44,19 @@ fixed (int* pArray = new[] {1, 2, 3, 4})
 }
 ```
 
-As you can see, a downside might be a need for pinning the arrays in memory to obtain their pointers for loading vectors from the memory or saving vectors to the memory. As of now, we don't have API to load or save data differently.
+As you can see, a downside might be the necessity of pinning the array in the memory to obtain the pointer for loading and saving vectors.
 
-Another drawback is that unlike vectors intrinsics don't have an abstraction overhead that provides a software fallback when the hardware doesn't support a particular instruction. We have to be careful with that, otherwise, we get an exception that the instruction set is not supported on the machine.
+Another drawback is that unlike vectors intrinsics don't have an abstraction that provides a software fallback if the hardware doesn't support a particular instruction. We have to be careful with that, otherwise, we get an exception that the instruction set is not supported on the machine.
 
-Alright, it's time to get our hands dirty on a (more or less) real problem.
+Let’s explore what intrinsics are capable of.
 
 ## Problem
 
-Last time we calculated a sum of an array of integers. Let's do something different this time, say, we have a needle string and we need to find a position of its first occurrence in the haystack string, if it's not found, return `-1`. You guessed it right, we are about to implement our own `IndexOf()`.
+Last time we calculated a sum of an array of integers. Let's do something different this time. Say, we have a needle string and we need to find a position of its first occurrence in the haystack string; if it's not found, we return `-1`. You guessed it right, we are about to implement our own `IndexOf()`.
 
 ## Built-in Solutions
 
-We already mentioned one built-in method for solving the problem, `IndexOf()`. We could also use `Regex` writing something like:
+We already mentioned one built-in method for solving the problem, `IndexOf()`. We could also use `Regex` to write something like:
 ```csharp
 public static int IndexOf(string haystack, string needle)
 {
@@ -71,17 +71,15 @@ We will do benchmarking to check which one is faster at the end of the post. In 
 
 For our solution, we will use an algorithm described in Wojciech Muła's [SIMD-friendly algorithms for substring searching](http://0x80.pl/articles/simd-strfind.html#algorithm-1-generic-simd). It's based on the naive string-search algorithm that's modified for SIMD usage.
 
-1. We load the first and last characters of the needle into vectors `needleFirst` and `needleLast`.
-2. We go through the haystack each iteration loading data into two vectors: the first one starts with index 0, the second one starts with the offset of the needle length minus one. We call them `blockFirst` and `blockLast`.
-3. Next, we compare `needleFirst` with `blockFirst`, and `needleLast` with `blockLast` storing results into `matchFirst` and `matchLast` respectively.
+1. We load the first and last characters of the needle into `needleFirst` and `needleLast` vectors.
+2. We go through the haystack block by block. With each iteration, we’re loading data into two vectors: the first one starts with the beginning of the block, the second one starts with the offset of the needle length minus one. We call them `blockFirst` and `blockLast`.
+3. Next, we compare `needleFirst` with `blockFirst`, and `needleLast` with `blockLast`, storing results into `matchFirst` and `matchLast` respectively.
 4. Then we perform the bitwise AND operation and save it to the `and` vector.
-5. Finally, we compute the mask of `and`. If the mask is equal to 0, there is no match found, we carry on loading next blocks of the haystack into `blockFirst` and `blockLast`. Otherwise, we have potential candidates. For each mask's bit, we extract its position, calculate offsets, and perform a character by character comparison of the candidate against the needle.
+5. Finally, we compute the mask of `and`. If the mask is equal to `0`, there is no match found, we carry on processing next block. Otherwise, we have potential candidates. For each mask's bit set to `1`, we extract its position, calculate the first and last indices of the potential candidate within the haystack, and perform candidate's character by character comparison against the needle.
 
-It might sound complex, but let's try it out on an example and see that it's a quite simple approach. Say, we have this string as a haystack: `cake is a lie`. The needle we are looking for is the word `is`.
+It might sound complex, but let's try it out on an example and see that it's actually a quite simple approach. Say, we have this string as a haystack: `cake is a lie`. The needle we are looking for is the word `is`.
 
-[IMAGE]
-
-Just to keep things simple our implementation will use 8 elements vectors. We start with defining `needleFirst`, `needleLast`, `blockFirst`, and `blockLast`:
+Just to keep things simple, here we will use 8 elements vectors. We start with defining `needleFirst`, `needleLast`, `blockFirst`, and `blockLast`:
 ```
 needleFirst = ['i', 'i', 'i', 'i', 'i', 'i', 'i', 'i']
 needleLast  = ['s', 's', 's', 's', 's', 's', 's', 's']
@@ -89,25 +87,25 @@ blockFirst  = ['c', 'a', 'k', 'e', ' ', 'i', 's', ' ']
 blockLast   = ['a', 'k', 'e', ' ', 'i', 's', ' ', 'a']
 ```
 
-According to step 3, we compare `needleFirst` with `blockFirst`, and `needleLast` with `blockLast` computing the mask:
+According to step 3, we compare `needleFirst` with `blockFirst`, and `needleLast` with `blockLast`:
 ```
 matchFirst  = [0, 0, 0, 0, 0, 1, 0, 0]
 matchLast   = [0, 0, 0, 0, 0, 1, 0, 0]
 ```
 
-Then we calculate `and` and compute the mask:
+Then we calculate `and` between the two and compute the mask:
 ```
 and         = [0, 0, 0, 0, 0, 1, 0, 0]
 mask        = 32
 ```
 
-What value 32 tells us is that if we were to imagine our 8 elements vector in the form of a binary number it would look like that `00000100`. (Keep in mind, though, it's a [little-endian representation]((https://en.wikipedia.org/wiki/Endianness#Little-endian)), so for us, humans, a more readable format would be big-endian: `00100000`). That's exactly number 32 in the decimal numeral system. 
+What value 32 tells us is that if we were to imagine our 8 elements vector in the form of a binary number it would look like `00000100`. (Keep in mind, though, it's a [little-endian representation](https://en.wikipedia.org/wiki/Endianness#Little-endian), so for us, humans, a more readable format would be big-endian: `00100000`, or just `100000`). That's exactly number 32 in the decimal numeral system.
 
-Finally, we obtain a zero-based position of the first bit set to `1` (which is 5 in the little-endian representation) and check our candidate: `is`, which happens to be the needle.
+Finally, we obtain a zero-based position of the first bit set to `1` which is 5 in the little-endian representation, and calculate candidate's first and last indices: 5 and 6. We check our candidate: `is`, which happens to be the needle.
 
 ## SIMD Implementation Using Hardware Intrinsics
 
-Following the blog post, we can find an [implementation](http://0x80.pl/articles/simd-strfind.html#sse-avx2) written in C++ that uses intrinsics. Let's port it to C#:
+Following Wojciech Muła's blog post, we can find an [implementation](http://0x80.pl/articles/simd-strfind.html#sse-avx2) written in C++ that uses intrinsics. Let's port it to C#:
 ```csharp
 public static unsafe int IndexOf(string haystack, string needle)
 {
@@ -144,19 +142,19 @@ public static unsafe int IndexOf(string haystack, string needle)
 }
 ```
 
-We pin both strings, the haystack and the needle, in memory to obtain their pointers. According to the algorithm we create two vectors `needleFirst` and `needleLast` that contain the needle's first and last characters respectively. Please note that we get `Vector256<ushort>` out of the `Create` method, not `Vector256<char>`, because vectors can only store integral and floating-point numeric types.
+We pin both strings, the haystack and the needle, in the memory to obtain their pointers. According to the algorithm we create two vectors `needleFirst` and `needleLast` that contain the needle's first and last characters respectively. Please note that we get `Vector256<ushort>` out of the `Create` method, not `Vector256<char>`, because vectors can only store integral and floating-point numeric types.
 
-We go through the haystack vector by vector. Each iteration we load haystack data into `blockFirst` and `blockLast`, trying to find a match and computing the mask. Unlike the C++ implementation, though, we have to do a few tricks with the mask in C#.
+We go through the haystack vector by vector. With each iteration, we load haystack data into `blockFirst` and `blockLast`, trying to find a match and computing the mask. Unlike the C++ implementation, though, we have to do a few tricks with the mask in C#.
 
-First, instrinsics don't have a function for computing the mask of the vector containing 16-bit values, like `ushort`. We have to represent it as a vector containing bytes instead. Hence we compute `maskBytes` of the 32 bytes vector, then we remove every odd bit reducing the mask value:
+First, instrinsics don't have a function for computing the mask of the vector containing 16-bit values, like `ushort`. We have to represent it as a vector containing bytes instead. Hence we compute `maskBytes` of the 32 bytes vector, then we remove every odd bit reducing the mask value, so:
 ```
 and = [0, 0, 0, 0, 1, 1, ... // the rest of 26 zeros ]
-maskBytes = 48 // big-endian binary is 110000
+maskBytes = 48 // little-endin binary is 000011 (big-endian binary is 110000)
 ```
 becomes:
 ```
 and = [0, 0, 1, ... // the rest of 13 zeros ]
-mask = 4 // big-endian binary is 100
+mask = 4 // little-endin binary is 001 (big-endian binary is 100)
 ```
 We remove every odd bit using bitwise operations:
 ```csharp
@@ -170,7 +168,7 @@ private static int RemoveOddBits(int n)
 }
 ```
 
-Next, we have to figure out the position of the first bit that's set to `1`, so we do more bitwise magic:
+Next, we have to figure out the position of the first bit set to `1`, so we do more bitwise magic:
 ```csharp
 private static int GetFirstBit(int n)
 {
@@ -186,7 +184,7 @@ private static int ClearFirstBit(int n)
 }
 ```
 
-In the C++ implementation `memcmp` is used for checking the candidate string against the needle. We don't have this goodie in C#, so we have to write a poor's man `memcmp` ourselves:
+In the C++ implementation `memcmp` is used for checking the candidate string against the needle. We don't have this goodie in C#, so we have to write a poor man's `memcmp` ourselves:
 ```csharp
 private static unsafe bool Compare(char* source, int sourceOffset, char* dest, int destOffset, int length)
 {
@@ -201,7 +199,7 @@ private static unsafe bool Compare(char* source, int sourceOffset, char* dest, i
   return true;
 }
 ```
-Essentially we just check every candidate's character against the needle one by one. One thing to note here — we don't pass the first and last indices of the needle to this method, we already know that they match. Instead, we are passing the second one and the second from the last characters.
+Essentially we just check every candidate's character against the needle one by one. One detail to note here — we don't pass the first and the last indices of the candidate to this method as we already know that they match. Instead, we are passing the second and the second to last indices.
 
 Time to compare all the implementations we gathered throughout this post:
 ```
@@ -228,15 +226,15 @@ Time to compare all the implementations we gathered throughout this post:
 
 ## Possible Improvements
 
-In the [Intel Intrinsics Guide](https://software.intel.com/sites/landingpage/IntrinsicsGuide/) each intrinsic has Latency and Throughput values that depend on the CPU architecture. The former means how long it takes for the CPU to complete the instruction, the latter has to do with how many operations we can perform at once (each of them being in the different execution phase). For instance, `_mm256_loadu_si256` the one we were using for loading data into a vector has the latency of 1 and the throughput of 0.25 on the Haswell architecture. Meaning, we can run up to 4 instructions per 1 CPU cycle. We don't necessarily get the x4 performance because we are to have optimal conditions. This optimization applies to small loops only, so it should be suitable for our case. Using this knowledge and knowing the CPU architecture we can unroll some vector instructions in the main block loop expecting at least some performance benefit.
+In the [Intel Intrinsics Guide](https://software.intel.com/sites/landingpage/IntrinsicsGuide/), each intrinsic has Latency and Throughput characteristics that depend on the CPU architecture. The former means how long it takes for the CPU to complete the instruction, the latter has to do with how many operations we can perform at once, each of them being in the different execution phase. For instance, `_mm256_loadu_si256` that we were using for loading data into a vector, has the latency of 1 and the throughput of 0.25 on the Haswell architecture. Meaning, we can run up to 4 instructions per 1 CPU cycle. We don't necessarily get the x4 performance because we are unlikely to have optimal conditions. This optimization applies to small loops only, so it should be suitable for our case. Using this knowledge and knowing our CPU architecture, we can unroll some vector instructions in the main block loop expecting at least some performance benefit.
 
-According to Intel's [Developer Guide and Reference](https://software.intel.com/content/www/us/en/develop/documentation/cpp-compiler-developer-guide-and-reference/top/compiler-reference/intrinsics/data-alignment-memory-allocation-intrinsics-and-inline-assembly/alignment-support.html#alignment-support) aligning data should also improve the performance of intrinsics. In our code, we are not aware of memory alignment. Dealing with it, though, is not an easy job, but still doable. For example, we could search for the first aligned element and process previous elements without vectors. In that case, we also could use `LoadAlignedVector256` function. It gets translated to the `_mm256_load_si256` intrinsic which verifies that data is aligned.
+According to Intel's [Developer Guide and Reference](https://software.intel.com/content/www/us/en/develop/documentation/cpp-compiler-developer-guide-and-reference/top/compiler-reference/intrinsics/data-alignment-memory-allocation-intrinsics-and-inline-assembly/alignment-support.html#alignment-support) aligning data should also improve the performance of intrinsics. In our code, we are not aware of memory alignment. Dealing with it, though, is not an easy job, but still doable. For example, we could search for the first aligned element and start with it processint previous elements without vectors. Applying this optimization we could use `LoadAlignedVector256` function. It gets translated to the `_mm256_load_si256` intrinsic which verifies that data is aligned.
 
 ## Conclusion
 
-The example we were going through might not be very practical, but I hope it gives an overview of what hardware intrinsics are capable of. Since they are providing CPU specific functionality, we have to be aware of the hardware we run our code. I guess you can see why the main rule of performance — always measure it — especially applicable for intrinsics.
+The example we were going through might not be very practical, but I hope it gives an overview of what hardware intrinsics are capable of. Since they are providing CPU specific functionality, we have to be aware of the hardware we run our code on. I guess you can see why the main rule of performance — always measure it — is especially important for intrinsics.
 
-You can check out code from this post on GitHub: [HaystacksNeedlesAndHardwareIntrinsics](https://github.com/timiskhakov/HaystacksNeedlesAndHardwareIntrinsics).
+You can check out the code from this post on GitHub: [HaystacksNeedlesAndHardwareIntrinsics](https://github.com/timiskhakov/HaystacksNeedlesAndHardwareIntrinsics).
 
 ## Further Reading
 
