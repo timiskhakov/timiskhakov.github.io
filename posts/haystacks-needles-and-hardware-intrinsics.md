@@ -60,22 +60,49 @@ Let’s explore what intrinsics are capable of.
 
 Last time we calculated a sum of an array of integers. Let's do something different this time. Say, we have a needle string and we need to find a position of its first occurrence in the haystack string; if it's not found, we return `-1`. You guessed it right, we are about to implement our own `IndexOf()`.
 
-## Built-in Solutions
+## Naive Solution
 
-We already mentioned one built-in method for solving the problem, `IndexOf()`. We could also use `Regex` to write something like:
+We will start with the [naive string search algorith](https://en.wikipedia.org/wiki/String-searching_algorithm#Na%C3%AFve_string_search) as a base line:
+
 ```csharp
-public static int IndexOf(string haystack, string needle)
+public static int NaiveIndexOf(string haystack, string needle)
+{
+  for (var i = 0; i <= haystack.Length - needle.Length; i++)
+  {
+    var j = 0;
+    for (; j < needle.Length; j++)
+    {
+      if (haystack[i + j] != needle[j]) break;
+    } 
+
+    if (j == needle.Length)
+    {
+      return i;
+    } 
+  }
+
+  return -1;
+}
+```
+
+It's not very efficient, but it does its job and might be a good starting point for us.
+
+## Built-in Methods
+
+We already mentioned one built-in method for solving the problem, `String.IndexOf()`. We could also use `Regex` to write something like:
+```csharp
+public static int RegexIndexOf(string haystack, string needle)
 {
   var match = Regex.Match(haystack, needle, RegexOptions.Compiled);
   return match.Success ? match.Index : -1;
 }
 ```
 
-We will do benchmarking to check which one is faster at the end of the post. In the meantime let's write our own SIMD-friendly solution.
+We will do benchmarking to check which method is faster at the end of the post. In the meantime let's write our own SIMD-friendly solution.
 
 ## SIMD Algorithm
 
-For our solution, we will use an algorithm described in Wojciech Muła's [SIMD-friendly algorithms for substring searching](http://0x80.pl/articles/simd-strfind.html#algorithm-1-generic-simd). It's based on the naive string-search algorithm that's modified for SIMD usage.
+For the SIMD solution, we will use an algorithm described in Wojciech Muła's [SIMD-friendly algorithms for substring searching](http://0x80.pl/articles/simd-strfind.html#algorithm-1-generic-simd). It's based on the naive string-search algorithm that's modified for SIMD usage.
 
 1. We load the first and last characters of the needle into `needleFirst` and `needleLast` vectors.
 2. We go through the haystack block by block. A block has the same size as a vector. With each iteration, we’re loading data into two vectors: the first one starts with the beginning of the block, the second one starts with the offset of the needle length minus one. We call them `blockFirst` and `blockLast`.
@@ -113,7 +140,7 @@ Finally, we obtain a zero-based position of the first bit set to `1` which is 4 
 
 Following Wojciech Muła's blog post, we can find an [implementation](http://0x80.pl/articles/simd-strfind.html#sse-avx2) written in C++ that uses intrinsics. Let's port it to C#:
 ```csharp
-public static unsafe int IndexOf(string haystack, string needle)
+public static unsafe int IntrinsicsIndexOf(string haystack, string needle)
 {
   fixed (char* pHaystack = haystack)
   fixed (char* pNeedle = needle)
@@ -207,30 +234,25 @@ private static unsafe bool Compare(char* source, int sourceOffset, char* dest, i
 ```
 Essentially we just check every candidate's character against the needle one by one. One detail to note here — we don't pass the first and the last indices of the candidate to this method as we already know that they match. Instead, we are passing the second and the second to last indices.
 
-Time to compare all the implementations we gathered throughout this post:
-```
-|     Method |       N |         Mean |      Error |       StdDev |
-|----------- |-------- |-------------:|-----------:|-------------:|
-|    IndexOf |    1000 |     37.28 us |   0.319 us |     0.298 us |
-|      RegEx |    1000 |     14.30 us |   0.062 us |     0.051 us |
-| Intrinsics |    1000 |     10.52 us |   0.125 us |     0.117 us |
-|    IndexOf |   10000 |    481.01 us |   5.309 us |     4.707 us |
-|      RegEx |   10000 |    184.43 us |   0.888 us |     0.787 us |
-| Intrinsics |   10000 |     99.30 us |   1.802 us |     2.642 us |
-|    IndexOf |  100000 |  4,586.90 us |  40.718 us |    34.002 us |
-|      RegEx |  100000 |  2,014.48 us |  39.185 us |    45.125 us |
-| Intrinsics |  100000 |  1,270.74 us |   7.566 us |     6.707 us |
-|    IndexOf | 1000000 | 53,587.69 us | 258.594 us |   241.889 us |
-|      RegEx | 1000000 | 22,832.78 us | 334.703 us |   313.082 us |
-| Intrinsics | 1000000 | 15,834.85 us | 329.650 us | 1,001.466 us |
-```
+## Benchmarking
 
-`N` is the length of the haystack. As we can see intrinsics are faster in every single case. The benchmark was run under the following spec:
+Time to compare all the implementations we gathered throughout this post. In the benchmark we will search for a needle located at the end of the 10k word haystack:
+```
+|     Method |      Mean |     Error |    StdDev |
+|----------- |----------:|----------:|----------:|
+|      Naive | 50.105 us | 0.3209 us | 0.3002 us |
+|    IndexOf |  2.560 us | 0.0224 us | 0.0198 us |
+|      RegEx | 33.651 us | 0.2659 us | 0.2357 us |
+| Intrinsics |  9.595 us | 0.0948 us | 0.0841 us |
+```
+That's right, built-in `IndexOf` (that takes `Ordinal` as the `StringComparison` parameter) is the fastest because it exploits the `SpanHelpers.IndexOf` method which [uses hardware intrinsics internally](https://github.com/dotnet/runtime/blob/6b5850fa7cf476b66be9d01a3ed05f4484b01d3a/src/libraries/System.Private.CoreLib/src/System/SpanHelpers.Char.cs#L17) (and a better string search algorithm for sure). The benchmark was run under the following spec:
 - macOS Catalina 10.15.4
 - Intel Core i7-8569U CPU 2.80GHz (Coffee Lake)
 - .NET Core SDK=3.1.200
 
 ## Possible Improvements
+
+Nevertheless, if we want to improve the performance of our `IntrinsicsIndexOf` further we can take a look at the following approaches: instruction pipelining and memory alignment.
 
 In the [Intel Intrinsics Guide](https://software.intel.com/sites/landingpage/IntrinsicsGuide/), each intrinsic has Latency and Throughput characteristics that depend on the CPU architecture. The former means how long it takes for the CPU to complete the instruction, the latter has to do with how many operations we can perform at once, each of them being in the different execution phase. For instance, `_mm256_loadu_si256` that we were using for loading data into a vector, has the latency of 1 and the throughput of 0.25 on the Haswell architecture. Meaning, we can run up to 4 instructions per 1 CPU cycle. We don't necessarily get the x4 performance because we are unlikely to have optimal conditions. This optimization applies to small loops only, so it should be suitable for our case. Using this knowledge and knowing our CPU architecture, we can unroll some vector instructions in the main block loop expecting at least some performance benefit.
 
@@ -238,7 +260,7 @@ According to Intel's [Developer Guide and Reference](https://software.intel.com/
 
 ## Conclusion
 
-The example we were going through might not be very practical, but I hope it gives an overview of what hardware intrinsics are capable of. Since they are providing CPU specific functionality, we have to be aware of the hardware we run our code on. I guess you can see why the main rule of performance — always measure it — is especially important for intrinsics.
+Indeed, the example we were going through is not very practical, but I hope it gives an overview of what hardware intrinsics are capable of. Since they are providing CPU specific functionality, we have to be aware of the hardware we run our code on. I guess you can see why the main rule of performance — always measure it — is especially important for intrinsics.
 
 You can check out the code from this post on GitHub: [HaystacksNeedlesAndHardwareIntrinsics](https://github.com/timiskhakov/HaystacksNeedlesAndHardwareIntrinsics).
 
