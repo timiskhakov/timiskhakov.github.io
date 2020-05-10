@@ -13,8 +13,8 @@ vectorA.CopyTo(result);
 ```
 It was translated into the following assembly code:
 ```asm
-vmovdqu ymm0, ymmword ptr       ; load first array into the first vector
-vmovdqu ymm1, ymmword ptr       ; load second array into the second vector
+vmovdqu ymm0, ymmword ptr       ; load first array into vector A
+vmovdqu ymm1, ymmword ptr       ; load second array into vector B
 vpaddd  ymm0, ymm0, ymm1        ; perform addition on two vectors
 vmovdqu ymmword ptr [...], ymm0 ; copy the vector to the array
 ```
@@ -34,7 +34,7 @@ fixed (int* pResult = result)
 }
 ```
 
-First two `Avx.LoadVector256` are converted into the `_mm256_loadu_si256` intrinsic which, according to the [Intel Intrinsics Guide](https://software.intel.com/sites/landingpage/IntrinsicsGuide/), translates to the `vmovdqu` instruction. Then `Avx2.Add` converts into `_mm256_add_epi32` that adds vectors together via `vpaddd`. Finally, we store the result into the memory using the `_mm256_storeu_si256` intrinsic that gets translated to `vmovdqu`. As you might have noticed, here we got the same instructions as in the example above.
+First two `Avx.LoadVector256` are converted into the `_mm256_loadu_si256` intrinsic which, according to the [Intel Intrinsics Guide](https://software.intel.com/sites/landingpage/IntrinsicsGuide/), translates to the `vmovdqu` instruction. Then `Avx2.Add` converts into `_mm256_add_epi32` that adds vectors together via `vpaddd`. Finally, we store the result into the memory using the `_mm256_storeu_si256` intrinsic that gets translated to `vmovdqu`. As you might have noticed, here we got the same instructions as for the example above.
 
 One of the benefits of using intrinsics is the ability to choose which instruction set to use. For instance, here we are exploiting AVX2 because we perform addition on 256-bits of integer data with 8 elements per vector, although, nothing stops us from choosing a different instruction set if we want to use smaller vectors, for example:
 ```csharp
@@ -46,7 +46,13 @@ fixed (int* pArray = new[] {1, 2, 3, 4})
 
 As you can see, a downside might be the necessity of pinning the array in the memory to obtain the pointer for loading and saving vectors.
 
-Another drawback is that unlike vectors intrinsics don't have an abstraction that provides a software fallback if the hardware doesn't support a particular instruction. We have to be careful with that, otherwise, we get an exception that the instruction set is not supported on the machine.
+Another drawback is that unlike vectors intrinsics don't have an abstraction that provides a software fallback if the hardware doesn't support a particular instruction set. We have to be careful with that, otherwise, we get an exception that the set is not supported on the machine. We can use the `IsSupported` property to check if it's available:
+```csharp
+if (Avx2.IsSupported)
+{
+  // Do things
+}
+```
 
 Let’s explore what intrinsics are capable of.
 
@@ -77,31 +83,31 @@ For our solution, we will use an algorithm described in Wojciech Muła's [SIMD-f
 4. Then we perform the bitwise AND operation and save it to the `and` vector.
 5. Finally, we compute the mask of `and`. If the mask is equal to `0`, there is no match found, we carry on processing the next block. Otherwise, we have potential candidates. For each mask's bit set to `1`, we extract its position, calculate the first and last indices of the candidate within the haystack, and perform candidate's character by character comparison against the needle.
 
-It might sound complex, but let's try it out on an example and see that it's actually a quite simple approach. Say, we have this string as a haystack: `cake is a lie`. The needle we are looking for is the word `is`.
+It might sound complex, but let's try it out on an example and see that it's actually a quite simple approach. Say, we have this string as a haystack: `The cake is a lie`. The needle we are looking for is, well, `cake`.
 
 Just to keep things simple, here we will use 8 elements vectors. We start with defining `needleFirst`, `needleLast`, `blockFirst`, and `blockLast`:
 ```
-needleFirst = ['i', 'i', 'i', 'i', 'i', 'i', 'i', 'i']
-needleLast  = ['s', 's', 's', 's', 's', 's', 's', 's']
-blockFirst  = ['c', 'a', 'k', 'e', ' ', 'i', 's', ' ']
-blockLast   = ['a', 'k', 'e', ' ', 'i', 's', ' ', 'a']
+needleFirst = ['c', 'c', 'c', 'c', 'c', 'c', 'c', 'c']
+needleLast  = ['e', 'e', 'e', 'e', 'e', 'e', 'e', 'e']
+blockFirst  = ['t', 'h', 'e', ' ', 'c', 'a', 'k', 'e']
+blockLast   = [' ', 'c', 'a', 'k', 'e', ' ', 'i', 's']
 ```
 
 According to step 3, we compare `needleFirst` with `blockFirst`, and `needleLast` with `blockLast`:
 ```
-matchFirst  = [0, 0, 0, 0, 0, 1, 0, 0]
-matchLast   = [0, 0, 0, 0, 0, 1, 0, 0]
+matchFirst  = [0, 0, 0, 0, 1, 0, 0, 0]
+matchLast   = [0, 0, 0, 0, 1, 0, 0, 0]
 ```
 
 Then we calculate `and` between the two and compute the mask:
 ```
-and         = [0, 0, 0, 0, 0, 1, 0, 0]
-mask        = 32
+and         = [0, 0, 0, 0, 1, 0, 0, 0]
+mask        = 16
 ```
 
-What value 32 tells us is that if we were to imagine our 8 elements vector in the form of a binary number it would look like `00000100`. (Keep in mind, though, it's a [little-endian representation](https://en.wikipedia.org/wiki/Endianness#Little-endian), so for us, humans, a more readable format would be big-endian: `00100000`, or just `100000`). That's exactly number 32 in the decimal numeral system.
+What value 16 tells us is that if we were to imagine our 8 elements vector in the form of a binary number it would look like `00001000`. (Keep in mind, though, it's a [little-endian representation](https://en.wikipedia.org/wiki/Endianness#Little-endian), so for us, humans, a more readable format would be big-endian: `00010000`, or just `10000`). That's exactly number 16 in the decimal numeral system.
 
-Finally, we obtain a zero-based position of the first bit set to `1` which is 5 in the little-endian representation, and calculate candidate's first and last indices: 5 and 6. We check our candidate: `is`, which happens to be the needle.
+Finally, we obtain a zero-based position of the first bit set to `1` which is 4 in the little-endian representation, and calculate candidate's first and last indices: 4 and 7. We check our candidate: `cake`, which happens to be the needle.
 
 ## SIMD Implementation Using Hardware Intrinsics
 
@@ -148,13 +154,13 @@ We go through the haystack vector by vector. With each iteration, we load haysta
 
 First, instrinsics don't have a function for computing the mask of the vector containing 16-bit values, like `ushort`. We have to represent it as a vector containing bytes instead. Hence we compute `maskBytes` of the 32 bytes vector, then we remove every odd bit reducing the mask value, so:
 ```
-and = [0, 0, 0, 0, 1, 1, ... // the rest of 26 zeros ]
-maskBytes = 48 // little-endin binary is 000011 (big-endian binary is 110000)
+and = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, ... // the rest of 22 zeros ]
+maskBytes = 768 // little-endian binary is 0000000011 (big-endian binary is 1100000000)
 ```
 becomes:
 ```
-and = [0, 0, 1, ... // the rest of 13 zeros ]
-mask = 4 // little-endin binary is 001 (big-endian binary is 100)
+and = [0, 0, 0, 0, 1, ... // the rest of 11 zeros ]
+mask = 16 // little-endian binary is 00001 (big-endian binary is 10000)
 ```
 We remove every odd bit using bitwise operations:
 ```csharp
@@ -219,7 +225,7 @@ Time to compare all the implementations we gathered throughout this post:
 | Intrinsics | 1000000 | 15,834.85 us | 329.650 us | 1,001.466 us |
 ```
 
-`N` is a length of the haystack. The benchmark was run under the following spec:
+`N` is the length of the haystack. As we can see intrinsics are faster in every single case. The benchmark was run under the following spec:
 - macOS Catalina 10.15.4
 - Intel Core i7-8569U CPU 2.80GHz (Coffee Lake)
 - .NET Core SDK=3.1.200
