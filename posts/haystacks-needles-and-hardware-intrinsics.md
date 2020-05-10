@@ -62,7 +62,7 @@ Last time we calculated a sum of an array of integers. Let's do something differ
 
 ## Naive Solution
 
-We will start with the [naive string search algorith](https://en.wikipedia.org/wiki/String-searching_algorithm#Na%C3%AFve_string_search) as a base line:
+We will start with the [naive string search algorithm](https://en.wikipedia.org/wiki/String-searching_algorithm#Na%C3%AFve_string_search) as a baseline:
 
 ```csharp
 public static int NaiveIndexOf(string haystack, string needle)
@@ -102,7 +102,7 @@ We will do benchmarking to check which method is faster at the end of the post. 
 
 ## SIMD Algorithm
 
-For the SIMD solution, we will use an algorithm described in Wojciech Muła's [SIMD-friendly algorithms for substring searching](http://0x80.pl/articles/simd-strfind.html#algorithm-1-generic-simd). It's based on the naive string-search algorithm that's modified for SIMD usage.
+For the SIMD solution, we will use an algorithm described in Wojciech Muła's [SIMD-friendly algorithms for substring searching](http://0x80.pl/articles/simd-strfind.html#algorithm-1-generic-simd). It's based on the naive string search algorithm that's modified for SIMD usage.
 
 1. We load the first and last characters of the needle into `needleFirst` and `needleLast` vectors.
 2. We go through the haystack block by block. A block has the same size as a vector. With each iteration, we’re loading data into two vectors: the first one starts with the beginning of the block, the second one starts with the offset of the needle length minus one. We call them `blockFirst` and `blockLast`.
