@@ -205,9 +205,10 @@ Next, we have to figure out the position of the first bit set to `1`, so we do m
 ```csharp
 private static int GetFirstBit(int n)
 {
-  return (int) (Math.Log10(n & -n) / Math.Log10(2));
+  return BitOperations.TrailingZeroCount(n);
 }
 ```
+Under the hood `TrailingZeroCount` performs the [Bit Scan Forward](https://www.felixcloutier.com/x86/bsf) instruction that calculates the position of the first significant bit in the little-endian representation of `n` — exactly what we need.
 
 Finally, if the candidate is not the string we are looking for, we clear the bit reducing the size of the mask:
 ```csharp
