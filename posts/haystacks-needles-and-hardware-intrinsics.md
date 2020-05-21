@@ -136,7 +136,7 @@ What value 16 tells us is that if we were to imagine our 8 elements vector in th
 
 Finally, we obtain a zero-based position of the first bit set to `1` which is 4 in the little-endian representation, and calculate candidate's first and last indices: 4 and 7. We check our candidate: `cake`, which happens to be the needle.
 
-## SIMD Implementation Using Hardware Intrinsics
+## SIMD Implementation
 
 Following Wojciech Muła's blog post, we can find an [implementation](http://0x80.pl/articles/simd-strfind.html#sse-avx2) written in C++ that uses intrinsics. Let's port it to C#:
 ```csharp
@@ -205,18 +205,19 @@ Next, we have to figure out the position of the first bit set to `1`, so we do m
 ```csharp
 private static int GetFirstBit(int n)
 {
-  return BitOperations.TrailingZeroCount(n);
+  return (int) Bmi1.TrailingZeroCount((uint) n);
 }
 ```
-Under the hood `TrailingZeroCount` performs the [Bit Scan Forward](https://www.felixcloutier.com/x86/bsf) instruction that calculates the position of the first significant bit in the little-endian representation of `n` — exactly what we need.
+Under the hood `TrailingZeroCount` performs the [TZCNT](https://www.felixcloutier.com/x86/tzcnt) instruction that counts the number of trailing least significant zero bits. In other words, it calculates the position of the first significant bit in the little-endian representation of `n` — exactly what we need.
 
 Finally, if the candidate is not the string we are looking for, we clear the bit reducing the size of the mask:
 ```csharp
 private static int ClearFirstBit(int n)
 {
-  return n & (n - 1);
+  return (int) Bmi1.ResetLowestSetBit((uint) n);
 }
 ```
+This intrinsic gets translated into the [BLSR](https://www.felixcloutier.com/x86/blsr) instruction that resets the lowest set bit.
 
 In the C++ implementation `memcmp` is used for checking the candidate string against the needle. We don't have this goodie in C#, so we have to write a poor man's `memcmp` ourselves:
 ```csharp
