@@ -1,5 +1,9 @@
 # Posts
 
+21.06.2020
+
+[Exploring Spans and Pipelines Revisited](https://timiskhakov.github.io/posts/exploring-spans-and-pipelines-revisited)
+
 10.05.2020
 
 [Haystacks, Needles, and Hardware Intrinsics](https://timiskhakov.github.io/posts/haystacks-needles-and-hardware-intrinsics)
