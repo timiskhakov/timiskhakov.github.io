@@ -12,6 +12,6 @@
 
 [Vectorized Computations and SIMD](https://timiskhakov.github.io/posts/vectorized-computations-and-simd)
 
-31.11.2019
+31.10.2019
 
 [Exploring Spans and Pipelines](https://timiskhakov.github.io/posts/exploring-spans-and-pipelines)

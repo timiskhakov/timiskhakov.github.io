@@ -225,7 +225,7 @@ public class FileParserSpansAndPipes : IFileParser
         reader.AdvanceTo(buffer.Start, buffer.End);
         if (read.IsCompleted)
         {
-            break;
+          break;
         }
       }
     }
