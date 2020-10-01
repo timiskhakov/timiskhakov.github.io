@@ -1,5 +1,9 @@
 # Posts
 
+30.09.2020
+
+[Computing the Convex Hull on the GPU](https://timiskhakov.github.io/posts/сomputing-the-convex-hull-on-the-gpu)
+
 21.06.2020
 
 [Exploring Spans and Pipelines Revisited](https://timiskhakov.github.io/posts/exploring-spans-and-pipelines-revisited)
