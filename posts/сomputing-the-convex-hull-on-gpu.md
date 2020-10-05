@@ -63,7 +63,7 @@ To see how it all works, let's borrow a slightly modified simple CUDA program fr
 ```cpp
 int main(void) {
   int N = 1000000;
-  float* x, * y;
+  float *x, *y;
 
   cudaMallocManaged(&x, N * sizeof(float));
   cudaMallocManaged(&y, N * sizeof(float));
@@ -91,7 +91,7 @@ int main(void) {
   return 0;
 }
 
-__global__ void add(int n, float* x, float* y) {
+__global__ void add(int n, float *x, float *y) {
   int index = blockIdx.x * blockDim.x + threadIdx.x;
   if (index > n) return;
 
