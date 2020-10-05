@@ -1,12 +1,12 @@
 # Computing the Convex Hull on GPU
 
-We have talked about hardware acceleration in [one of the previous posts](https://timiskhakov.github.io/posts/haystacks-needles-and-hardware-intrinsics) where we briefly touched upon the topic of CPU-specific instructions and, in particular, SIMD usage. Modern desktop computers and some servers are often equipped with graphics cards. Their primary purpose is to render graphics, which, as a side-effect, has enabled them to be excellent for the computation of complex and high-volume matrix mathematics
+We have talked about hardware acceleration in [one of the previous posts](https://timiskhakov.github.io/posts/haystacks-needles-and-hardware-intrinsics) where we briefly touched upon the topic of CPU-specific instructions and, in particular, SIMD usage. However, the CPU is not the only piece of hardware programmers can use for computations. Modern desktop computers and some servers are often equipped with graphics cards. Their primary purpose was to render graphics, which, as a side-effect, made them excellent for the computation of complex and high-volume matrix mathematics.
 
 General-purpose computing on GPUs began to appear in the early 2000s. Back then it was difficult to translate programming concepts into graphics terms. However, later on, graphics card manufacturers introduced special interfaces for general-purpose programming, like OpenCL and CUDA.
 
-On the GPU, programmers can execute code on multiple device cores in parallel. Modern graphics cards are designed to run thousands of threads. They also offer higher memory bandwidth and instruction throughput than the CPU. A common GPU programming pattern is to prepare data on the CPU side, copy it to graphics card's memory, process data there, and copy results back for future use. Of course, there is an overhead due to additional complexity and copying data back and forth, but parallelization can make up for it on a large input.
+On the GPU, programmers can execute code on multiple device cores in parallel. Modern graphics cards are designed to run thousands of threads. They also offer higher memory bandwidth and instruction throughput than CPUs. A common GPU programming pattern is to prepare data on the CPU side, copy it to the graphics card's memory, process data there, and copy results back for future use. Of course, there is an overhead due to additional complexity and copying data back and forth, but parallelization can make up for it on large input.
 
-GPU programming is different from what we are used to on the x86 platform. It implies programming in the SIMT paradigm, meaning we run a single instruction on multiple threads, which is akin to SIMD, where we store multiple data in CPU registers and then process it with a single instruction. When relying on CPU acceleration we often need to refactor only some parts of our code using more or less same x86 instructions. In GPU programming, on the other hand, the platform is different, and so are the instructions. That often implies significant changes to the code we want to accelerate.
+GPU programming is different from what we are used to on the x86 platform. It implies programming in the SIMT paradigm, meaning we run a single instruction on multiple threads, which is akin to SIMD, where we store multiple data in CPU registers and then process it with a single instruction. When relying on CPU acceleration we often need to refactor only some parts of our code using more or less the same x86 instructions. In GPU programming, on the other hand, the platform is different, and so are the instructions. That often implies significant changes to the code we want to accelerate.
 
 GPU programming has its drawbacks. Aside from code changes mentioned above, one of the main problems is, perhaps, portability. Even within a single graphics card manufacturer the same code that runs perfectly on one device might crash on the other due to less memory or a different API version.
 
@@ -18,7 +18,7 @@ CUDA, or Compute Unified Device Architecture, is a computing platform created by
 
 In Nvidia terms, code that's supposed to run on the GPU is called device code as opposed to host code that (you guessed it) runs on the CPU. Similarly, there are device memory and host memory.
 
-Device code is usually broken down into kernel functions that the host calls when GPU power is needed. CUDA organizes threads into blocks and then blocks into a grid. When a kernel is executed, the whole grid is assigned to the job. The block size can be defined to some extent, although there is a limit. Modern GPUs can contain up to 1024 threads per block.
+Device code is usually broken down into kernel functions that the host calls when GPU power is needed. CUDA organizes threads into blocks and then blocks into a grid. When a kernel is executed, the whole grid is assigned to the job. Block size can be defined to some extent, although there is a limit. Modern GPUs can contain up to 1024 threads per block.
 
 Kernels are typically run in parallel by multiple GPU threads, one thread per data element in most cases. Threads can also synchronize with each other within the same block.
 
@@ -107,7 +107,7 @@ Then `cudaMallocManaged` tells CUDA to allocate something that's called Unified 
 
 Next, we set `blockSize` (the number of threads in a block) and compute `numBlocks` (the number of blocks in a grid). Based on 256 threads and 1 million elements we should get 3907 blocks.
 
-We run the kernel function `add` providing `blockSize` and `numBlock` with a special triple bracket syntax and passing array pointers and the number of their elements.
+We run the kernel function `add` providing `blockSize` and `numBlock` with a special triple bracket syntax and passing array pointers along with the number of their elements.
 
 The kernel `add` is defined below with a special keyword `__global__`. In the function, we need to figure out the index of the current element. We can calculate it using built-in `blockIdx`, `blockDim`, and `threadIdx` variables that give us the block index, block size, and thread index within the block, respectively. While CUDA supports 1D, 2D, 3D data — vector, matrix, and volume (a 3D array) — in this post we work with vectors, therefore we only access `x` property when computing the index.
 
@@ -185,7 +185,7 @@ Once the buffers `x` and `y` are allocated, we need to initialize them.
 
 Similarly to C++, we calculate `blockSize` and `numBlocks`. It seems that ILGPU uses the word "group" for the CUDA term "block". I assume this is due to its working not only with CUDA but with other accelerators as well.
 
-The next step is to load the kernel function, providing `blockSize` and `numBlocks` as the kernel configuration. The kernel looks quite the same, except we don't need to calculate a index by hand. ILGPU does it for us providing the static `Grid.GlobalIndex.X` property.
+The next step is to load the kernel function, providing `blockSize` and `numBlocks` as the kernel configuration. The kernel looks quite the same, except we don't need to calculate an index by hand. ILGPU does it for us providing the static `Grid.GlobalIndex.X` property.
 
 Finally, we wait for the GPU to complete the task, copy data back to the host, and check the results. The output should be the same as in the C++ program:
 
@@ -223,7 +223,7 @@ Our goal here is to make Quickhull run faster by parallelization. First, we will
 
 ## Naive Implementation
 
-For starters, we need to define a point model we are going to operate upon:
+To start with, we need to define a point model we are going to operate upon:
 
 ```csharp
 public readonly struct Point
@@ -262,7 +262,7 @@ public HashSet<Point> QuickHull(Point[] points)
 }
 ```
 
-Then following steps 2 and 3, we calculate distances between the line and all the points for each side of the line (`1` and `-1` above indicate the side). Finally, we find the maximum distance's index, check it, and repeat the process recursively until we have no points left:
+Following steps 2 and 3, we calculate distances between the line and all the points for each side of the line (`1` and `-1` above indicate the side). Finally, we find the maximum distance's index, check it, and repeat the process recursively until we have no points left:
 
 ```csharp
 private static void FindHull(Point[] points, Point p1, Point p2, int side, HashSet<Point> result)
@@ -310,7 +310,7 @@ private static int Side(Point p1, Point p2, Point p)
 }
 ```
 
-As you might have noticed, `Distance` method doesn't return the actual distance between the point and the line. Instead, it returns a value that's proportional to the distance. Since we only need to know which point is more distant, we can use this value further. For the lack of a better name, I'll continue calling it "distance".
+As you might have noticed, `Distance` method doesn't return the actual distance between the point and the line. Instead, it returns a value that's proportional to the distance. Since we only need to know which point is more distant, we can use this value further. For the lack of a better name, I'll continue to call it "distance".
 
 ## CPU Parallelization
 
@@ -361,10 +361,10 @@ That's a lot to take in, so let's analyze each argument of `Parallel.For`:
 1. We still iterate over the points array starting from `0`.
 2. Naturally, we have to stop when we reach `points.Length`.
 3. Since we are looking for the furthest point's index, we set its initial value to `-1`, meaning not found.
-4. The body of `Parallel.For` runs a lambda function in parallel that takes the current element, the internal state of the loop (we don't really need it, hence `_`), and the current furthest point as arguments. The body of the lambda should look familiar. Essentially, it's the same computations we did for the naive Quickhull.
+4. The body of `Parallel.For` runs a lambda function in parallel that takes the current element, the internal state of the loop (we don't really need it, hence `_`), and the current furthest point as arguments. The body of the lambda should look familiar. Essentially, it's the same computation we did for the naive Quickhull.
 5. Finally, the most interesting part. Each computed index is passed to a special function that applies it to the final result `maxIndex`. It normally runs concurrently on multiple threads, therefore we have to play safe by using synchronization of some sort. Here we use our good old friend `lock`.
 
-Since we do more work here by computing the same distances twice in steps 4 and 5, it might seem that code should run slower. In fact, it runs faster, thanks to parallelization. To compare two implementations we will do a benchmark at the end of the post.
+Since we do more work here by computing the same distance twice in steps 4 and 5, it might seem that the code should run slower. In fact, it runs faster, thanks to parallelization. To compare two implementations we will do a benchmark at the end of the post.
 
 The rest of the implementation remains the same as in the naive version.
 
@@ -374,9 +374,9 @@ Equipped with some knowledge on GPU computing and how to apply it in .NET, we ca
 
 We start with the core idea of the implementation.
 
-As stated in the beginning of the post, when running a kernel the GPU assigns it to the grid containing multiple blocks, each block being processed on a single SM. Instead of spawning as many threads as there are points, we are going to issue as many blocks as there are SMs on the GPU. Each block has a limited amount of threads, so in the grid we'll only get `numberOfBlocks * numberOfThreadsPerBlock` threads at our disposal. Since this number might be smaller than the amount of points, we'll add an internal loop within each thread. Thus, each thread can do multiple iterations over the points array.
+As stated at the beginning of the post, when running a kernel the GPU assigns it to the grid containing multiple blocks, each block being processed on a single SM. Instead of spawning as many threads as there are points, we are going to issue as many blocks as there are SMs on the GPU. Each block has a limited amount of threads, so in the grid we'll only get `numberOfBlocks * numberOfThreadsPerBlock` threads at our disposal. Since this number might be smaller than the number of points, we'll add an internal loop within each thread. Thus, each thread can do multiple iterations over the points array.
 
-We'll dedicate a thread to find its local `maxIndex` and `maxDistance` among the points it operates upon. Next, on the block level we'll figure out the block's local `maxIndex` and `maxDistance`. Finally, we will pass this information to the host and compute the index of the furthest point there.
+We'll dedicate a thread to find its local `maxIndex` and `maxDistance` among the points it operates upon. Next, on the block level, we'll figure out the block's local `maxIndex` and `maxDistance`. Finally, we will pass this information to the host and compute the index of the furthest point there.
 
 Let me illustrate how it works with a simple example. Say, we have a line `[{ 0, 0 }, { 100, 100 }]` and the following set of 7 points (for the sake of simplicity they are located on one side of the line):
 
@@ -397,7 +397,7 @@ Block0 = [Thread0, Thread1]
 Block1 = [Thread2, Thread3]
 ```
 
-Since we have more points than threads, we need to compute a stride that's going to be applied to the thread's internal loop. The stride is just the number of threads in the grid. So, `Thread0` handles points `A` and `D`, `Thread1` processes `B` and `E`, `Thread2` takes `C` and `F`, and `Thread0` works with `G` only. That leaves us with the following results on the thread level:
+Since we have more points than threads, we need to compute a stride that's going to be applied to the thread's internal loop. The stride is just the number of threads in the grid. So, `Thread0` handles points `A` and `D`, `Thread1` processes `B` and `E`, `Thread2` takes `C` and `F`, and `Thread3` works with `G` only. That leaves us with the following results on the thread level:
 
 ```
 Thread0: maxIndex=4, maxDistance=4200
@@ -548,7 +548,7 @@ We obtain the stride of the thread loop by accessing the static property `GridSt
 
 During the `for` loop, each thread accesses a point in the view applying the stride. It passes the point down to `FindMaxIndex` function which computes its index and distance and updates thread's `maxIndex` and `maxDistance`.
 
-Once we calculated indexes and distances on the thread level, we run the `Reduce` function from the algorithms library. It's a block-wise operation that calls the execution barrier, takes a provided value from all the threads within the block, and applies a reduction function to them. Once it's done, it continues thread execution. Here we use it to find the maximum distance, that's why we provide `MaxFloat` as a reduction function.
+Once we calculated indexes and distances on the thread level, we run the `Reduce` function from the algorithms library. It's a block-wise operation that calls the execution barrier, takes provided values from all the threads within the block, and applies a reduction function to them. Once it's done, it continues thread execution. Here we use it to find the maximum distance, that's why we provide `MaxFloat` as a reduction function.
 
 To find the index, though, we need to do a small trick. Within each thread, we reset `maxIndex` to `-1` if thread's `maxDistance` is not the maximum one on the block level. Then, to find the index we call `Reduce`, this time using `MaxInt32` as a reduction function. As a result, we get either the initial `-1`, meaning we have no points left for this particular line or the index of the maximum distance.
 
@@ -578,7 +578,7 @@ private static void FindMaxIndex(
 
 ## Benchmarking
 
-Phew, it was a long ride! It is interesting to compare the implementations and see which one is faster.
+Phew, it's been a long ride! It is interesting to compare the implementations and see which one is faster.
 
 For the benchmark, we will compute the convex hull of a set containing 10 million points. Not a very large input for a GPU, but it should be enough to see the performance difference.
 
@@ -603,7 +603,7 @@ Sweet! I wonder how would high-end graphics cards perform in this benchmark?
 
 Usually, GPU programming finds its use in scientific computing, image processing, machine learning, and such. It's probably not something that most of us, .NET developers, would use on a daily basis. However, it's good to know that if there is a need for that, we can do it without leaving our comfortable .NET world. Whatever tools we choose for the job, though, we have to remember the main rule of performance tuning: always measure it. Especially when it comes to hardware-specific code.
 
-Many thanks to [MoFtZ](https://github.com/MoFtZ) who has helped me a lot with the index/distance GPU optimizations.
+Many thanks to [MoFtZ](https://github.com/MoFtZ) for helping me a lot with index/distance GPU optimizations, to [Alexei Matrosov](https://github.com/alexeimatrosov) for thoroughly reviewing this post, and to [P J Łaszkowicz](https://fillip.pro) for suggesting numerous improvements.
 
 You can check out the code from this post on GitHub: [ComputingTheConvexHullOnGpu](https://github.com/timiskhakov/ComputingTheConvexHullOnGpu).
 

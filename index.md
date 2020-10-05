@@ -1,6 +1,6 @@
 # Posts
 
-30.09.2020
+05.10.2020
 
 [Computing the Convex Hull on GPU](https://timiskhakov.github.io/posts/сomputing-the-convex-hull-on-gpu)
 
