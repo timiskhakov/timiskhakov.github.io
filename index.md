@@ -2,7 +2,7 @@
 
 05.10.2020
 
-[Computing the Convex Hull on GPU](https://timiskhakov.github.io/posts/сomputing-the-convex-hull-on-gpu)
+[Computing the Convex Hull on GPU](https://timiskhakov.github.io/posts/computing-the-convex-hull-on-gpu)
 
 21.06.2020
 
