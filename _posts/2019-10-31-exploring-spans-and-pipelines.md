@@ -1,4 +1,7 @@
-# Exploring Spans and Pipelines
+---
+layout: post
+title: "Exploring Spans and Pipelines"
+---
 
 The other day I was working on a client project when I stumbled upon a ticket that required me to move some functionality from an old legacy system to our .NET Core backend. The functionality itself was fetching a text file from the network, parsing it into application data structures, and saving them to the database. Sounds quite easy, doesn't it? So, I wrote some code that solved the problem and moved on...
 
@@ -7,6 +10,7 @@ The other day I was working on a client project when I stumbled upon a ticket th
 ## Problem
 
 Let's make up a similar problem with a completely arbitrary domain. Say, we have an application that works with... I dunno, video games (I'm a bit into this topic, so, the domain is not really arbitrary). Imagine we have a model that describes a video game as:
+
 ```csharp
 public class Videogame
 {
@@ -18,7 +22,9 @@ public class Videogame
   public bool HasMultiplayer { get; set; }
 }
 ```
+
 `Genres` is just an enum:
+
 ```csharp
 public enum Genres
 {
@@ -30,10 +36,13 @@ public enum Genres
   Strategy = 6
 }
 ```
-We also have a  giant list of games somewhere that we have to fetch and parse into a bunch of classes described above. To make things simpler, imagine that "somewhere" is just a PSV file on a disk (that is, a pipe-separated file, just like CSV, but with a pipe `|` instead of a comma). A video game is represented by a single line in the file:
+
+We also have a giant list of games somewhere that we have to fetch and parse into a bunch of classes described above. To make things simpler, imagine that "somewhere" is just a PSV file on a disk (that is, a pipe-separated file, just like CSV, but with a pipe `|` instead of a comma). A video game is represented by a single line in the file:
+
 ```
 38e27dea-1d7d-4279-be97-e29d53a8af89|F.E.A.R.|4|2005-10-18|90|False
 ```
+
 Meaning: it's a shooter called F.E.A.R. released on 18.10.2005 that has no multiplayer, but does have an ID and rating.
 
 Let’s say there are 500 000 lines in this file in total, the maximum length of each line is 150 characters. Our goal is to parse the file into a list of data structures located in the memory as fast as possible using as little memory as we can.
@@ -43,6 +52,7 @@ Let’s say there are 500 000 lines in this file in total, the maximum length of
 ## First Approach
 
 The problem is simple, right? First, let's try to write a naïve line parser:
+
 ```csharp
 public interface ILineParser
 {
@@ -71,9 +81,11 @@ public class LineParser : ILineParser
   }
 }
 ```
+
 We will need the interface a bit later for the file parser. Also, important to note: since it's demo code, let's assume we only deal with ideal data and not bother with handling corner cases, catching possible exceptions, and validating models. (Although in real life we would do that, right? ...right?)
 
 Second, we need something to read the file and feed each line to the line parser, so, let's write a simple file parser:
+
 ```csharp
 public interface IFileParser
 {
@@ -83,12 +95,12 @@ public interface IFileParser
 public class FileParser : IFileParser
 {
   private readonly ILineParser _lineParser;
-  
+
   public FileParser(ILineParser lineParser)
   {
     _lineParser = lineParser;
   }
-  
+
   public async Task<List<Videogame>> Parse(string file)
   {
     var videogames = new List<Videogame>();
@@ -101,18 +113,20 @@ public class FileParser : IFileParser
         var line = await reader.ReadLineAsync();
         var videogame = _lineParser.Parse(line);
        	videogames.Add(videogame);
-      }    
+      }
     }
-      
+
     return videogames;
   }
 }
 ```
+
 Nice and clean! The code indeed solves the problem.
 
 ## Introducing Spans<T>
 
 Can we make the code above better? Well, it depends on what "better" means. Though, there is at least one thing that could possibly be improved. We do a lot of memory allocation as we work with strings. In order to reduce them let's introduce [`Span<T>`](https://docs.microsoft.com/en-us/dotnet/api/system.span-1), a new type that's allocated on the stack, and use it to write a new implementation of `ILineParser`:
+
 ```csharp
 public class LineParserSpans : ILineParser
 {
@@ -128,14 +142,14 @@ public class LineParserSpans : ILineParser
     // Don't worry, we will increment this value in ParseChunk
     var scanned = -1;
     var position = 0;
-    
+
     var id = ParseChunk(ref span, ref scanned, ref position);
     var name = ParseChunk(ref span, ref scanned, ref position);
     var genre = ParseChunk(ref span, ref scanned, ref position);
     var releaseDate = ParseChunk(ref span, ref scanned, ref position);
     var rating = ParseChunk(ref span, ref scanned, ref position);
     var hasMultiplayer = ParseChunk(ref span, ref scanned, ref position);
-    
+
     return new Videogame
     {
       Id = Guid.Parse(id),
@@ -143,48 +157,53 @@ public class LineParserSpans : ILineParser
       Genre = (Genres)int.Parse(genre),
       ReleaseDate = DateTime.ParseExact(releaseDate, "yyyy-MM-dd", DateTimeFormatInfo.InvariantInfo),
       Rating = int.Parse(rating),
-      HasMultiplayer = bool.Parse(hasMultiplayer) 
+      HasMultiplayer = bool.Parse(hasMultiplayer)
     };
   }
 
   private static ReadOnlySpan<char> ParseChunk(ref ReadOnlySpan<char> span, ref int scanned, ref int position)
   {
     scanned += position + 1;
-    
+
     position = span.Slice(scanned, span.Length - scanned).IndexOf('|');
     if (position < 0)
     {
       position = span.Slice(scanned, span.Length - scanned).Length;
     }
-    
+
     return span.Slice(scanned, position);
   }
 }
 ```
+
 All right, things got a bit tricky here. We still operate on a string representation of a video game, but instead of splitting it into multiple strings we create a `Span<char>` out of it. After that we move from one pipe to another until the end creating a slice (that is, a part of the span) each time we move. Since we know the string format, we can rely on slice positions. Yes, it might look a bit clunky, but we [don't have](https://github.com/dotnet/corefx/issues/26528) something like `Split()` method on `Span<T>` as of now, so we have to do it manually.
 
 Another thing worth mentioning: we make `Parse(ReadOnlySpan<char> span)` public and static because we will need it a bit later.
 
 At this point we have two different line parser implementations — it's time to do some benchmarking. Let's install [`BenchmarkDotNet`](https://github.com/dotnet/BenchmarkDotNet), write some code to run different implementations, and... relax on a chair waiting for it to do its job. While waiting let me describe my setup. This and other benchmarks will be run under the following spec:
+
 - macOS Mojave 10.14.6
 - Intel Core i7-7567U CPU 3.50GHz (Kaby Lake)
 - .NET Core SDK=3.0.100
 
 Bear in mind, though, that your results might be different. Oh, speak of the devil, here is the result:
+
 ```
 |          Method |     Mean |    Error |   StdDev |  Gen 0 | Gen 1 | Gen 2 | Allocated |
 |---------------- |---------:|---------:|---------:|-------:|------:|------:|----------:|
 |      LineParser | 756.0 ns | 14.61 ns | 17.39 ns | 0.1945 |     - |     - |     408 B |
 | LineParserSpans | 581.2 ns | 12.61 ns | 17.68 ns | 0.0496 |     - |     - |     104 B |
-
 ```
+
 Well, the result is indeed positive, but to be honest, it is not that exciting, is it? But what about the big picture? Let's run some benchmarks on file parsers and feed our 500k line file to them:
+
 ```
 |          Method |       Mean |    Error |   StdDev |       Gen 0 |      Gen 1 |     Gen 2 | Allocated |
 |---------------- |-----------:|---------:|---------:|------------:|-----------:|----------:|----------:|
 |      FileParser | 1,156.2 ms |  8.31 ms |  7.77 ms | 114000.0000 | 40000.0000 | 5000.0000 | 375.13 MB |
 | FileParserSpans |   862.6 ms | 16.51 ms | 16.22 ms |  50000.0000 | 15000.0000 | 4000.0000 | 230.51 MB |
 ```
+
 Well, that's something, if we are talking about memory consumption.
 
 ## Introducing Pipelines
@@ -194,6 +213,7 @@ There is still a problem with our code. Can you guess what it is? If you said th
 In order to do that, let me bring yet another toy to the existing code — `System.IO.Pipelines`. It's a new library in the .NET world designed for high performance IO. Kestrel, ASP.NET Core's web server, uses `System.IO.Pipelines` under the hood. Pipelines are similar to streams, but the Pipelines library is faster as it uses `Span<T>` and its API is clearer.
 
 But let's go back to our code. We will make a new implementation of `IFileParser` and here is what we will do:
+
 1. This time 'round we will read the file chunk by chunk, instead of string by string.
 2. We will store each chunk in a buffer represented by `ReadOnlySequence<byte>`.
 3. Then we will read lines from this buffer, also represented by `ReadOnlySequence<byte>`, and parse them into our `Videogame` model.
@@ -201,6 +221,7 @@ But let's go back to our code. We will make a new implementation of `IFileParser
 5. To keep things simple we will use a default buffer size.
 
 Let's see how we can do all this:
+
 ```csharp
 public class FileParserSpansAndPipes : IFileParser
 {
@@ -221,7 +242,7 @@ public class FileParserSpansAndPipes : IFileParser
           var videogame = ProcessSequence(sequence);
           result.Add(videogame);
         }
-            
+
         reader.AdvanceTo(buffer.Start, buffer.End);
         if (read.IsCompleted)
         {
@@ -240,10 +261,10 @@ public class FileParserSpansAndPipes : IFileParser
       line = default;
       return false;
     }
-      
+
     line = buffer.Slice(0, position.Value);
     buffer = buffer.Slice(buffer.GetPosition(1, position.Value));
-    
+
     return true;
   }
 
@@ -259,10 +280,10 @@ public class FileParserSpansAndPipes : IFileParser
     {
       throw new ArgumentException($"Line has a length exceeding the limit: {length}");
     }
-    
+
     Span<byte> span = stackalloc byte[(int)sequence.Length];
     sequence.CopyTo(span);
-        
+
     return Parse(span);
   }
 
@@ -281,6 +302,7 @@ So, we create a pipe connected to our good ol' friend `FileStream`. Pipelines al
 While reading and parsing a chunk we have to tell Pipelines how much data we consumed and examined. We do it by calling `reader.AdvanceTo(buffer.Start, buffer.End)`. That way we allow Pipeline to do its buffer management.
 
 Ok, it's time for final benchmarking:
+
 ```
 |                  Method |       Mean |    Error |   StdDev |       Gen 0 |      Gen 1 |      Gen 2 | Allocated |
 |------------------------ |-----------:|---------:|---------:|------------:|-----------:|-----------:|----------:|
@@ -288,6 +310,7 @@ Ok, it's time for final benchmarking:
 |         FileParserSpans |   905.5 ms | 17.71 ms | 25.96 ms |  52000.0000 | 18000.0000 |  8000.0000 | 230.56 MB |
 | FileParserSpansAndPipes |   640.5 ms |  7.69 ms |  6.82 ms |  15000.0000 |  7000.0000 |  3000.0000 |  78.77 MB |
 ```
+
 Pretty good, huh?
 
 ## Conclusion

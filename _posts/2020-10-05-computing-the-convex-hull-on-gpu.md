@@ -1,6 +1,9 @@
-# Computing the Convex Hull on GPU
+---
+layout: post
+title: "Computing the Convex Hull on GPU"
+---
 
-We have talked about hardware acceleration in [one of the previous posts](https://timiskhakov.github.io/posts/haystacks-needles-and-hardware-intrinsics) where we briefly touched upon the topic of CPU-specific instructions and, in particular, SIMD usage. However, the CPU is not the only piece of hardware programmers can use for computations. Modern desktop computers and some servers are often equipped with graphics cards. Their primary purpose was to render graphics, which, as a side-effect, made them excellent for the computation of complex and high-volume matrix mathematics.
+We have talked about hardware acceleration in [one of the previous posts](haystacks-needles-and-hardware-intrinsics) where we briefly touched upon the topic of CPU-specific instructions and, in particular, SIMD usage. However, the CPU is not the only piece of hardware programmers can use for computations. Modern desktop computers and some servers are often equipped with graphics cards. Their primary purpose was to render graphics, which, as a side-effect, made them excellent for the computation of complex and high-volume matrix mathematics.
 
 General-purpose computing on GPUs began to appear in the early 2000s. Back then it was difficult to translate programming concepts into graphics terms. However, later on, graphics card manufacturers introduced special interfaces for general-purpose programming, like OpenCL and CUDA.
 

@@ -1,3 +1,11 @@
-theme: jekyll-theme-slate
 title: Tim Iskhakov
 description: Programming notes
+email: timiskhakov@gmail.com
+baseurl: ""
+url: "https://timiskhakov.github.io"
+github_username: timiskhakov
+
+theme: minima
+permalink: /posts/:title
+plugins:
+  - jekyll-feed

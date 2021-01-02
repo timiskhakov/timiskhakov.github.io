@@ -1,10 +1,14 @@
-# Exploring Spans and Pipelines Revisited
+---
+layout: post
+title: "Exploring Spans and Pipelines Revisited"
+---
 
-A while ago we [explored](https://timiskhakov.github.io/posts/exploring-spans-and-pipelines) the usage of `Span<T>` and `Pipelines` to speed up file parsing. However, as David Fowler has [rightly pointed out](https://github.com/timiskhakov/ExploringSpansAndPipelines/issues/1) we might have had a problem with stack allocations if we had long lines in the file. Considering the data I had to work with and trying to keep the post as simple as possible, I've come up with a workaround by putting a line length limit into the method that processes the line. Now the time has come, let's remove the workaround and replace it with a proper solution instead.
+A while ago we [explored](exploring-spans-and-pipelines) the usage of `Span<T>` and `Pipelines` to speed up file parsing. However, as David Fowler has [rightly pointed out](https://github.com/timiskhakov/ExploringSpansAndPipelines/issues/1) we might have had a problem with stack allocations if we had long lines in the file. Considering the data I had to work with and trying to keep the post as simple as possible, I've come up with a workaround by putting a line length limit into the method that processes the line. Now the time has come, let's remove the workaround and replace it with a proper solution instead.
 
 ## Introducing ArrayPool
 
 I don't want to copy the whole code from the previous post, so let's take a quick look at the method that contains the limit:
+
 ```csharp
 private static Videogame ProcessSequence(ReadOnlySequence<byte> sequence)
 {
@@ -18,10 +22,10 @@ private static Videogame ProcessSequence(ReadOnlySequence<byte> sequence)
   {
     throw new ArgumentException($"Line has a length exceeding the limit: {length}");
   }
-  
+
   Span<byte> span = stackalloc byte[(int)sequence.Length];
   sequence.CopyTo(span);
-      
+
   return Parse(span);
 }
 ```
@@ -29,6 +33,7 @@ private static Videogame ProcessSequence(ReadOnlySequence<byte> sequence)
 We might notice that the problem with the limit comes from the fact that `ReadOnlySequence<byte>` consists of segments. If it has one segment only, we parse it directly, otherwise, we allocate a byte array on the stack for further processing. To deal with long lines we need a way to either use a heap allocated array to copy the sequence data to it or process the sequence segment by segment.
 
 Let's take the first path and allocate an array to get the data out of the sequence. However, instead of just creating it we will use [`ArrayPool<T>`](https://docs.microsoft.com/en-us/dotnet/api/system.buffers.arraypool-1) that provides a resource pool for reusing arrays of `T`. The usage of the pool is quite simple: once we rent and use an array, we need to return it back to the pool. The pool provides `Rent` and `Return` methods for these actions. Now it's time to refactor `ProcessSequence` and use `ArrayPool<T>`:
+
 ```csharp
 private static readonly ArrayPool<byte> ArrayPool = ArrayPool<byte>.Shared;
 
@@ -55,6 +60,7 @@ As you probably noticed we don't convert bytes to chars here. Instead, we create
 ## Introducing Utf8Parser
 
 One detail to note before we go further: since we are going to change the signature of the line parser, we don't need to follow the contract of `ILineParser` we were sticking to previously. Frankly, I ran out of good names for the parsers (not that I had them before, though), so I named the new implementation simply `LineParserImproved`:
+
 ```csharp
 public static class LineParserImproved
 {
@@ -76,6 +82,7 @@ public static class LineParserImproved
 ```
 
 Each `Parse*Type*` method heavily relies on the [`Utf8Parser`](https://docs.microsoft.com/en-us/dotnet/api/system.buffers.text.utf8parser) that has a method for parsing almost every built-in primitive type:
+
 ```csharp
 private static Guid ParseGuid(ref ReadOnlySpan<byte> bytes)
 {
@@ -107,6 +114,7 @@ private static bool ParseBool(ref ReadOnlySpan<byte> bytes)
 ```
 
 Of course, for string parsing we need to come up with a bit different, but quite similar approach:
+
 ```csharp
 private static string ParseString(ref ReadOnlySpan<byte> bytes)
 {
@@ -118,12 +126,13 @@ private static string ParseString(ref ReadOnlySpan<byte> bytes)
 ```
 
 As you might have noticed we don't use `Utf8Parser` in `ParseDateTime`. Its `TryParse` method for `DateTime` parsing [supports several formats](https://docs.microsoft.com/en-us/dotnet/api/system.buffers.text.utf8parser.tryparse#System_Buffers_Text_Utf8Parser_TryParse_System_ReadOnlySpan_System_Byte__System_DateTime__System_Int32__System_Char_), but, sadly, a `DateTime` property in our data doesn't belong to those, it has a date part only, `yyyy-MM-dd`. Although, knowing the format, nothing stops us from implementing our own parser [based](https://github.com/dotnet/runtime/blob/4f9ae42d861fcb4be2fcd5d3d55d5f227d30e723/src/libraries/System.Private.CoreLib/src/System/Buffers/Text/Utf8Parser/Utf8Parser.Date.cs) on the built-in one:
+
 ```csharp
 private static bool TryParseExactDateTime(in ReadOnlySpan<byte> bytes, out DateTime value, out int consumed)
 {
   value = default;
   consumed = 0;
-  
+
   if (bytes.Length < 10) return false;
 
   var digit1 = bytes[0] - 48u; // 48u == '0'
@@ -133,7 +142,7 @@ private static bool TryParseExactDateTime(in ReadOnlySpan<byte> bytes, out DateT
   if (digit1 > 9 || digit2 > 9 || digit3 > 9 || digit4 > 9) return false;
 
   var year = 1000 * digit1 + 100 * digit2 + 10 * digit3 + digit4;
-  
+
   if (bytes[4] != (byte)'-') return false;
 
   var digit5 = bytes[5] - 48u;
@@ -141,15 +150,15 @@ private static bool TryParseExactDateTime(in ReadOnlySpan<byte> bytes, out DateT
   if (digit5 > 9 || digit6 > 9) return false;
 
   var month = 10 * digit5 + digit6;
-  
+
   if (bytes[7] != (byte)'-') return false;
-  
+
   var digit8 = bytes[8] - 48u;
   var digit9 = bytes[9] - 48u;
-  
+
   var day = 10 * digit8 + digit9;
   if (digit8 > 9 || digit9 > 9) return false;
-  
+
   value = new DateTime((int) year, (int) month, (int) day, 0, 0, 0, DateTimeKind.Utc);
   consumed = 10;
 
@@ -160,6 +169,7 @@ private static bool TryParseExactDateTime(in ReadOnlySpan<byte> bytes, out DateT
 ## Benchmarking
 
 We got quite good results in the previous post. Let's benchmark the new implementation and see if it gets better or worse. We use the same benchmark in which we parse a 500k line file into the application's data models:
+
 ```
 |                  Method |       Mean |    Error |   StdDev | Allocated |
 |------------------------ |-----------:|---------:|---------:|----------:|
@@ -168,7 +178,9 @@ We got quite good results in the previous post. Let's benchmark the new implemen
 | FileParserSpansAndPipes |   646.6 ms | 20.75 ms | 47.08 ms |  78.75 MB |
 |      FileParserImproved |   454.7 ms | 13.66 ms | 40.27 ms |  78.75 MB |
 ```
+
 The benchmark was run under the following spec:
+
 - macOS 10.15.5
 - Intel Core i7-8569U CPU 2.80GHz (Coffee Lake)
 - .NET Core SDK=3.1.200

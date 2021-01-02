@@ -1,8 +1,12 @@
-# Haystacks, Needles, and Hardware Intrinsics
+---
+layout: post
+title: "Haystacks, Needles, and Hardware Intrinsics"
+---
 
-In [the previous post](https://timiskhakov.github.io/posts/vectorized-computations-and-simd), we have explored SIMD-enabled types, such as vectors, provided by the `System.Numerics` namespace. They allow us to vectorize some array-based algorithms to speed up performance. However, since we were running code on .NET Core 3.1, we kinda ignored the elephant in the room — hardware intrinsics. Hardware intrinsics are special functions that are converted into CPU-specific instructions. They provide us with the same functionality as vectors from `System.Numerics` giving more flexibility and exposing additional instructions we can leverage on. Starting from .NET Core 3.0 hardware intrinsics are available under the `System.Runtime.Intrinsics` namespace.
+In [the previous post](vectorized-computations-and-simd), we have explored SIMD-enabled types, such as vectors, provided by the `System.Numerics` namespace. They allow us to vectorize some array-based algorithms to speed up performance. However, since we were running code on .NET Core 3.1, we kinda ignored the elephant in the room — hardware intrinsics. Hardware intrinsics are special functions that are converted into CPU-specific instructions. They provide us with the same functionality as vectors from `System.Numerics` giving more flexibility and exposing additional instructions we can leverage on. Starting from .NET Core 3.0 hardware intrinsics are available under the `System.Runtime.Intrinsics` namespace.
 
 Remember this example from the previous post?
+
 ```csharp
 var result = new int[8];
 
@@ -11,7 +15,9 @@ var vectorB = new Vector<int>(new[] {1, 2, 3, 4, 5, 6, 7, 8});
 vectorA += vectorB;
 vectorA.CopyTo(result);
 ```
+
 It was translated into the following assembly code:
+
 ```asm
 vmovdqu ymm0, ymmword ptr       ; load first array into vector A
 vmovdqu ymm1, ymmword ptr       ; load second array into vector B
@@ -20,6 +26,7 @@ vmovdqu ymmword ptr [...], ymm0 ; copy the vector to the array
 ```
 
 Using intrinsics we can write same code like this:
+
 ```csharp
 var result = new int[8];
 
@@ -37,6 +44,7 @@ fixed (int* pResult = result)
 First two `Avx.LoadVector256` are converted into the `_mm256_loadu_si256` intrinsic which, according to the [Intel Intrinsics Guide](https://software.intel.com/sites/landingpage/IntrinsicsGuide/), translates to the `vmovdqu` instruction. Then `Avx2.Add` converts into `_mm256_add_epi32` that adds vectors together via `vpaddd`. Finally, we store the result into the memory using the `_mm256_storeu_si256` intrinsic that gets translated to `vmovdqu`. As you might have noticed, here we got the same instructions as for the example above.
 
 One of the benefits of using intrinsics is the ability to choose which instruction set to use. For instance, here we are exploiting AVX2 because we perform addition on 256-bits of integer data with 8 elements per vector, although, nothing stops us from choosing a different instruction set if we want to use smaller vectors, for example:
+
 ```csharp
 fixed (int* pArray = new[] {1, 2, 3, 4})
 {
@@ -47,6 +55,7 @@ fixed (int* pArray = new[] {1, 2, 3, 4})
 As you can see, a downside might be the necessity of pinning the array in the memory to obtain the pointer for loading and saving vectors.
 
 Another drawback is that unlike vectors intrinsics don't have an abstraction that provides a software fallback if the hardware doesn't support a particular instruction set. We have to be careful with that, otherwise, we get an exception that the set is not supported on the machine. We can use the `IsSupported` property to check if it's available:
+
 ```csharp
 if (Avx2.IsSupported)
 {
@@ -73,12 +82,12 @@ public static int NaiveIndexOf(string haystack, string needle)
     for (; j < needle.Length; j++)
     {
       if (haystack[i + j] != needle[j]) break;
-    } 
+    }
 
     if (j == needle.Length)
     {
       return i;
-    } 
+    }
   }
 
   return -1;
@@ -90,6 +99,7 @@ It's not very efficient, but it does its job and might be a good starting point 
 ## Built-in Methods
 
 We already mentioned one built-in method for solving the problem, `String.IndexOf()`. We could also use `Regex` to write something like:
+
 ```csharp
 public static int RegexIndexOf(string haystack, string needle)
 {
@@ -113,6 +123,7 @@ For the SIMD solution, we will use an algorithm described in Wojciech Muła's [S
 It might sound complex, but let's try it out on an example and see that it's actually a quite simple approach. Say, we have this string as a haystack: `The cake is a lie`. The needle we are looking for is, well, `cake`.
 
 Just to keep things simple, here we will use 8 elements vectors. We start with defining `needleFirst`, `needleLast`, `blockFirst`, and `blockLast`:
+
 ```
 needleFirst = ['c', 'c', 'c', 'c', 'c', 'c', 'c', 'c']
 needleLast  = ['e', 'e', 'e', 'e', 'e', 'e', 'e', 'e']
@@ -121,12 +132,14 @@ blockLast   = [' ', 'c', 'a', 'k', 'e', ' ', 'i', 's']
 ```
 
 According to step 3, we compare `needleFirst` with `blockFirst`, and `needleLast` with `blockLast`:
+
 ```
 matchFirst  = [0, 0, 0, 0, 1, 0, 0, 0]
 matchLast   = [0, 0, 0, 0, 1, 0, 0, 0]
 ```
 
 Then we calculate `and` between the two and compute the mask:
+
 ```
 and         = [0, 0, 0, 0, 1, 0, 0, 0]
 mask        = 16
@@ -139,6 +152,7 @@ Finally, we obtain a zero-based position of the first bit set to `1` which is 4 
 ## SIMD Implementation
 
 Following Wojciech Muła's blog post, we can find an [implementation](http://0x80.pl/articles/simd-strfind.html#sse-avx2) written in C++ that uses intrinsics. Let's port it to C#:
+
 ```csharp
 public static unsafe int IntrinsicsIndexOf(string haystack, string needle)
 {
@@ -154,7 +168,7 @@ public static unsafe int IntrinsicsIndexOf(string haystack, string needle)
 
       var matchFirst = Avx2.CompareEqual(needleFirst, blockFirst);
       var matchLast = Avx2.CompareEqual(needleLast, blockLast);
-      
+
       var and = Avx2.And(matchFirst, matchLast);
       var maskBytes = Avx2.MoveMask(and.AsByte());
       var mask = RemoveOddBits(maskBytes);
@@ -180,16 +194,21 @@ We pin both strings, the haystack and the needle, in the memory to obtain their 
 We go through the haystack vector by vector. With each iteration, we load haystack data into `blockFirst` and `blockLast`, trying to find a match and computing the mask. Unlike the C++ implementation, though, we have to do a few tricks with the mask in C#.
 
 First, instrinsics don't have a function for computing the mask of the vector containing 16-bit values, like `ushort`. We have to represent it as a vector containing bytes instead. Hence we compute `maskBytes` of the 32 bytes vector, then we remove every odd bit reducing the mask value, so:
+
 ```
 and = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, ... // the rest of 22 zeros ]
 maskBytes = 768 // little-endian binary is 0000000011 (big-endian binary is 1100000000)
 ```
+
 becomes:
+
 ```
 and = [0, 0, 0, 0, 1, ... // the rest of 11 zeros ]
 mask = 16 // little-endian binary is 00001 (big-endian binary is 10000)
 ```
+
 We remove every odd bit using bitwise operations:
+
 ```csharp
 private static int RemoveOddBits(int n)
 {
@@ -202,24 +221,29 @@ private static int RemoveOddBits(int n)
 ```
 
 Next, we have to figure out the position of the first bit set to `1`, so we do more bitwise magic:
+
 ```csharp
 private static int GetFirstBit(int n)
 {
   return (int) Bmi1.TrailingZeroCount((uint) n);
 }
 ```
+
 Under the hood `TrailingZeroCount` performs the [TZCNT](https://www.felixcloutier.com/x86/tzcnt) instruction that counts the number of trailing least significant zero bits. In other words, it calculates the position of the first significant bit in the little-endian representation of `n` — exactly what we need.
 
 Finally, if the candidate is not the string we are looking for, we clear the bit reducing the size of the mask:
+
 ```csharp
 private static int ClearFirstBit(int n)
 {
   return (int) Bmi1.ResetLowestSetBit((uint) n);
 }
 ```
+
 This intrinsic gets translated into the [BLSR](https://www.felixcloutier.com/x86/blsr) instruction that resets the lowest set bit.
 
 In the C++ implementation `memcmp` is used for checking the candidate string against the needle. We don't have this goodie in C#, so we have to write a poor man's `memcmp` ourselves:
+
 ```csharp
 private static unsafe bool Compare(char* source, int sourceOffset, char* dest, int destOffset, int length)
 {
@@ -234,11 +258,13 @@ private static unsafe bool Compare(char* source, int sourceOffset, char* dest, i
   return true;
 }
 ```
+
 Essentially we just check every candidate's character against the needle one by one. One detail to note here — we don't pass the first and the last indices of the candidate to this method as we already know that they match. Instead, we are passing the second and the second to last indices.
 
 ## Benchmarking
 
 Time to compare all the implementations we gathered throughout this post. In the benchmark we will search for a needle located at the end of the 10k word haystack:
+
 ```
 |     Method |      Mean |     Error |    StdDev |
 |----------- |----------:|----------:|----------:|
@@ -247,7 +273,9 @@ Time to compare all the implementations we gathered throughout this post. In the
 |      RegEx | 33.651 us | 0.2659 us | 0.2357 us |
 | Intrinsics |  9.595 us | 0.0948 us | 0.0841 us |
 ```
+
 That's right, built-in `IndexOf` (that takes `Ordinal` as the `StringComparison` parameter) is the fastest because it exploits the `SpanHelpers.IndexOf` method which [uses hardware intrinsics internally](https://github.com/dotnet/runtime/blob/6b5850fa7cf476b66be9d01a3ed05f4484b01d3a/src/libraries/System.Private.CoreLib/src/System/SpanHelpers.Char.cs#L17) (and a better string search algorithm for sure). The benchmark was run under the following spec:
+
 - macOS Catalina 10.15.4
 - Intel Core i7-8569U CPU 2.80GHz (Coffee Lake)
 - .NET Core SDK=3.1.200
