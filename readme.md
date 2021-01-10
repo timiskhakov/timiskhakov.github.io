@@ -3,8 +3,8 @@
 To build and run the blog make sure you have the following dependencies installed on the machine:
 
 - [Ruby](https://www.ruby-lang.org/en/) 2.6.0 or higher
-- [Jekyll](https://jekyllrb.com/) 4.0.0 or higher
-- [Bundler](https://bundler.io/) 2.0.0 or higher
+- [Jekyll](https://jekyllrb.com/) 4.2.0 or higher
+- [Bundler](https://bundler.io/) 2.2.0 or higher
 
 ## Creating a New Post
 
