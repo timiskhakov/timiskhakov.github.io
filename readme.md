@@ -6,6 +6,8 @@
 - [Jekyll](https://jekyllrb.com/) 4.2.0 or higher
 - [Bundler](https://bundler.io/) 2.2.0 or higher
 
+Check out Jekyll's [installation](https://jekyllrb.com/docs/installation/) page to get detailed instructions.
+
 2. Install dependencies:
 
 ```
