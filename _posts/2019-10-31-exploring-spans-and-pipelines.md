@@ -321,6 +321,7 @@ You can check out this code and do your own benchmarks based on it: [ExploringSp
 
 ## Further Reading
 
+- [Exploring Spans and Pipelines Revisited](exploring-spans-and-pipelines-revisited)
 - [Memory and Span usage guidelines](https://docs.microsoft.com/en-us/dotnet/standard/memory-and-spans/memory-t-usage-guidelines/)
 - [Span](https://adamsitnik.com/Span/)
 - [System.IO.Pipelines: High performance IO in .NET](https://devblogs.microsoft.com/dotnet/system-io-pipelines-high-performance-io-in-net/)
