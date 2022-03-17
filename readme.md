@@ -21,7 +21,7 @@ bundle install
 3. Build the site:
 
 ```
-jekyll build
+bundle exec jekyll build
 ```
 
 ## Running Locally
