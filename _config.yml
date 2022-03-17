@@ -10,3 +10,4 @@ theme: minima
 permalink: /posts/:title
 plugins:
   - jekyll-feed
+  - jekyll-katex

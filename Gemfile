@@ -3,6 +3,7 @@ gem "jekyll", "~> 4.2.0"
 gem "minima", "~> 2.5"
 group :jekyll_plugins do
   gem "jekyll-feed", "~> 0.12"
+  gem 'jekyll-katex'
 end
 
 platforms :mingw, :x64_mingw, :mswin, :jruby do
@@ -12,3 +13,5 @@ end
 
 gem "wdm", "~> 0.1.1", :platforms => [:mingw, :x64_mingw, :mswin]
 
+
+gem "webrick", "~> 1.7"
