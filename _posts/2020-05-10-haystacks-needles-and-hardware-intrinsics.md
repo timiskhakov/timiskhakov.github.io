@@ -1,6 +1,7 @@
 ---
 layout: post
-title: "Haystacks, Needles, and Hardware Intrinsics"
+title: Haystacks, Needles, and Hardware Intrinsics
+excerpt: .NET Core 3.0 allows us to dive a bit deeper into SIMD and intrinsics
 ---
 
 In [the previous post](vectorized-computations-and-simd), we have explored SIMD-enabled types, such as vectors, provided by the `System.Numerics` namespace. They allow us to vectorize some array-based algorithms to speed up performance. However, since we were running code on .NET Core 3.1, we kinda ignored the elephant in the room — hardware intrinsics. Hardware intrinsics are special functions that are converted into CPU-specific instructions. They provide us with the same functionality as vectors from `System.Numerics` giving more flexibility and exposing additional instructions we can leverage on. Starting from .NET Core 3.0 hardware intrinsics are available under the `System.Runtime.Intrinsics` namespace.

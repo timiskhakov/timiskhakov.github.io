@@ -1,6 +1,7 @@
 ---
 layout: post
-title: "Exploring Spans and Pipelines"
+title: Exploring Spans and Pipelines
+excerpt: Improving the performance of file parsing by using new goodies in .NET Core
 ---
 
 The other day I was working on a client project when I stumbled upon a ticket that required me to move some functionality from an old legacy system to our .NET Core backend. The functionality itself was fetching a text file from the network, parsing it into application data structures, and saving them to the database. Sounds quite easy, doesn't it? So, I wrote some code that solved the problem and moved on...

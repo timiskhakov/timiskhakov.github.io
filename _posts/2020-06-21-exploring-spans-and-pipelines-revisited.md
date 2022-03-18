@@ -1,6 +1,7 @@
 ---
 layout: post
-title: "Exploring Spans and Pipelines Revisited"
+title: Exploring Spans and Pipelines Revisited
+excerpt: Revisiting a previous post on spans and pipelines and improving parsing performance
 ---
 
 A while ago we [explored](exploring-spans-and-pipelines) the usage of `Span<T>` and `Pipelines` to speed up file parsing. However, as David Fowler has [rightly pointed out](https://github.com/timiskhakov/ExploringSpansAndPipelines/issues/1) we might have had a problem with stack allocations if we had long lines in the file. Considering the data I had to work with and trying to keep the post as simple as possible, I've come up with a workaround by putting a line length limit into the method that processes the line. Now the time has come, let's remove the workaround and replace it with a proper solution instead.

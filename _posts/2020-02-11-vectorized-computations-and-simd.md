@@ -1,6 +1,7 @@
 ---
 layout: post
-title: "Vectorized Computations and SIMD"
+title: Vectorized Computations and SIMD
+excerpt: Exploring SIMD-enabled types in .NET
 ---
 
 Recently I've been searching for ways to improve the performance of my never-to-be-released roguelike game. I make it in my spare time purely for the sake of programming and my own entertainment, so I often diverge into performance-related bikeshedding. This time I stumbled upon vectorized computations and SIMD to speed up some array-based algorithms in the game.

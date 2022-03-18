@@ -1,5 +1,4 @@
 title: Timur Iskhakov
-description: Programming notes
 email: timiskhakov@gmail.com
 baseurl: ""
 url: "https://timiskhakov.github.io"
@@ -7,6 +6,7 @@ github_username: timiskhakov
 linkedin_username: timiskhakov
 
 theme: minima
+show_excerpts: true
 permalink: /posts/:title
 plugins:
   - jekyll-feed
