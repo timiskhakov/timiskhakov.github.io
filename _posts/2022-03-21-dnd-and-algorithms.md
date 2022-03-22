@@ -1,7 +1,7 @@
 ---
 layout: post
 title: D&D and Algorithms
-excerpt: Analyzing dice rolls using brute-force and binomial coefficients
+excerpt: Rolling the dice using brute-force and binomial coefficients
 ---
 
 A while ago, a friend of mine had asked me to help with a math problem for a video game that employed D&D-like mechanics. As someone who sunk countless hours into Baldur's Gate and Neverwinter Nights in his teens, I immediately was hooked by the mere mention of D&D. And, of course, I wanted to help my friend solve the issue.
