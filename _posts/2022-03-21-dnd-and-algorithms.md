@@ -266,7 +266,7 @@ func min(n, k int) int {
 }
 ```
 
-Normally, a binomial coefficient is computed using factorials. However, they are notorious for being large, so once we get over factorial of 12 we overflow the size of `int`. For that purpose alone, we will switch from computing factorials to iterating over `k` or `n - k` – whichever is the minimum – and building up the coefficient by multiplying intermediate results.
+Normally, a binomial coefficient is computed using factorials. However, they are notorious for being large, so once we get over factorial of 12 we overflow the size of `int`. For that purpose alone, we will switch from computing factorials to iterating over `k` or `n - k` – whichever is the minimum – and building up the coefficient by calculating intermediate results.
 
 Finally, we can check if we improved the algorithm performance-wise:
 
