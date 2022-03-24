@@ -15,7 +15,7 @@ The problem appeared interesting. And what do programmers usually do with a prob
 ## Problem
 
 Let's expand this problem by stating that we have a die with the `s` number of sides. We roll it `n` times and we are counting sums equal to `m`. Since we will be solving this problem on an x64 machine that has finite space for storing integer numbers, we would easily overflow calculations if we roll a multi-sided die numerous times. So let's also put the following constraints on our inputs:
-- 3 <= `s` <= 10
+- 4 <= `s` <= 10
 - 1 <= `n` <= 10
 - `n` <= `m` <= `s * n`
 
