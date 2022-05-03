@@ -52,7 +52,7 @@ func Synthesize(frequency float64, duration float64) []float64 {
 }
 ```
 
-This is just one example of how we could generate a sound wave in Go, but it will do. First, we set the `size`, or the number of samples in our wave, using `duration` in seconds and `SampleRate`. Then we create our output array of samples. Finally, we use the formula to compute each sample.
+This is just one example of how we could generate a sound wave in Go, but it will do. First, we set the `size`, or the number of samples in our wave, using `duration` in seconds and `SampleRate`. Then we create our output slice of samples. Finally, we use the formula to compute each sample.
 
 We will come to the method that records sound a bit later. For now, let's just pass to the function 329.63 Hz as `frequency` (that's the frequency of the E4 note, the first string on a guitar), and 4 seconds as `duration`, and see — or rather hear — what we get:
 
@@ -98,7 +98,7 @@ func Synthesize(frequency float64, duration float64) []float64 {
 }
 ```
 
-First, we create an array of random numbers `noise`. Then we create our output and fill in the first samples with the `noise`. The rest of the samples are calculated according to the formula, but we have to shift `noise`, that's why we subtract `len(noise)` in calculations.
+First, we create a slice of random numbers `noise`. Then we create our output and fill in the first samples with the `noise`. The rest of the samples are calculated according to the formula, but we have to shift `noise`, that's why we subtract `len(noise)` in calculations.
 
 Let's try the same first string:
 
@@ -157,7 +157,7 @@ func pickDirectionLowpass(noise []float64) {
 }
 ```
 
-First, we create a buffer array of the same size as the incoming `noise`. Next, we initialize its first element as `(1 - p) * noise[0]` since the second term in the formula is going to be `0` (remember that according to the Z-transform `p*buffer[-1]` would give as `0`). Then we apply the formula to the rest of the `noise` array. Finally, we assign the buffer to `noise`.
+First, we create a buffer slice of the same size as the incoming `noise`. Next, we initialize its first element as `(1 - p) * noise[0]` since the second term in the formula is going to be `0` (remember that according to the Z-transform `p*buffer[-1]` would give as `0`). Then we apply the formula to the rest of the `noise` slice. Finally, we assign the buffer to `noise`.
 
 The second filter in this group is **the pick-position comb filter** that determines the position at which the string was picked:
 
