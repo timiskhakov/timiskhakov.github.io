@@ -6,7 +6,7 @@ excerpt: From a making a beep to performing a guitar cover
 
 In this blog, I usually write about techniques and approaches that help us build more efficient software. But this time round we're going to do something different. We'll talk about sound waves, learn how they're stored in computers, simulate a guitar string sound, and perform a cover of Johnny Cash's version of Hurt — in a geeky way. So we won't use any pre-recorded samples, sequencers, or — heaven forbid — actual guitars. Instead, we will employ a little bit of math, Go, and a few helper libraries for audio processing.
 
-First, let's dive into the underlying theory. We won't be talking about the physics of sound waves and all the rest of it, but only glance over some concepts to establish common ground we're going to build our code upon.
+But first, let's dive into the underlying theory. We won't be talking about the physics of sound waves and all the rest of it, but only glance over some concepts to establish common ground we're going to build our code upon.
 
 ## Sound in Computers
 
@@ -14,7 +14,7 @@ In physics, sound is a complex phenomenon that involves propagation of acoustic 
 
 ![Wave](/assets/images/wave.png)
 
-The wave, in turn, can also be interpreted as a function of time that outputs values between -1 and 1. The wave has a lot of characteristics, but in the context of this post, we are only interested in two: length and frequency. The former is rather intuitive, that's just how long the wave is, measured in time units, like seconds or minutes. The latter, though, describes a repetition of the waveform. For example, the frequency of the yellow wave is twice that of the blue wave:
+The wave, in turn, can also be interpreted as a function of time that outputs values between -1 and 1. The wave has a lot of characteristics, but in the context of this post, we are only interested in two: length and frequency. The former is rather intuitive, that's just how long the wave is, measured in time units, like seconds or minutes. The latter, though, describes a repetition of the waveform. For example, the frequency of the yellow wave is twice that of the blue one:
 
 ![Wave twice](/assets/images/wave-twice.png)
 
@@ -112,11 +112,11 @@ We can play with the algorithm trying to find a better tune, but I suggest we mo
 
 ## Extended Karplus-Strong Algorithm
 
-To implement the extended Karplus-Strong algorithm, or EKS for short, we are going to closely follow [this article](https://ccrma.stanford.edu/realsimple/faust_strings/Extended_Karplus_Strong_Algorithm.html) describing the algorithm in detail. It's a bit heavy on math, but it gives us more control over the output sound. Let's start with the diagram:
+To implement the extended Karplus-Strong algorithm, or EKS for short, we are going to closely follow [this article](https://ccrma.stanford.edu/realsimple/faust_strings/Extended_Karplus_Strong_Algorithm.html) describing the algorithm in detail. It's a bit heavy on math, but it would give us more control over the output sound. Let's start with the diagram:
 
 ![EKS](/assets/images/eks.png)
 
-The core idea is somewhat similar to the basic Karplus-Strong: we generate noise in the beginning, then we generate sound somewhere in the middle, and we get final samples. Unlike its predecessor, though, EKS's middle part goes up to eleven as we have different filter groups, each of which applies to different parts of the pipeline. We can define the groups like that:
+The core idea is somewhat similar to the basic Karplus-Strong: we make some noise in the beginning, then we generate sound somewhere in the middle, and we get final samples. Unlike its predecessor, though, EKS's middle part goes up to eleven as we have different filter groups, each of which applies to different parts of the pipeline. We can define the groups like that:
 
 ![EKS groups](/assets/images/eks-groups.png)
 
@@ -130,7 +130,7 @@ Without diving too deep into the math, let's say that this formula can be expand
 
 $$ y(n) = x(n) + x(n -1) $$
 
-Where `x` is an input array and `y` is an output array. The Z-transform has an important feature that we should take into account: for each out of range `n` the result of the function is `0`, that is, `x(-1) = 0`. Now, to the filters.
+Where `x` is an input array and `y` is an output array. The Z-transform has an important feature that we should take into account: for each out-of-range `n` the result of the function is `0`, that is, `x(-1) = 0`. Now, to the filters.
 
 ### Noise Filters
 
@@ -157,7 +157,7 @@ func pickDirectionLowpass(noise []float64) {
 }
 ```
 
-First, we create a buffer slice of the same size as the incoming `noise`. Next, we initialize its first element as `(1 - p) * noise[0]` since the second term in the formula is going to be `0` (remember that according to the Z-transform `p*buffer[-1]` would give as `0`). Then we apply the formula to the rest of the `noise` slice. Finally, we assign the buffer to `noise`.
+First, we create a buffer slice of the same size as the incoming `noise`. Next, we initialize its first element as `(1 - p) * noise[0]` since the second term in the formula is going to be `0` (remember that according to the Z-transform `p * buffer[-1]` would give as `0`). Then we apply the formula to the rest of the `noise` slice. Finally, we assign the buffer to `noise`.
 
 The second filter in this group is **the pick-position comb filter** that determines the position at which the string was picked:
 
@@ -167,7 +167,7 @@ The expanded version of the formula:
 
 $$ y(n) = x(n) - x(n - int(\beta N + \frac 1 2)) $$
 
-Coefficient `β` is actually responsible for the pick position. We will be using value `0.1` indicating picking near the guitar's sound hole. The filter would be represented in code as another function:
+Coefficient `β` is responsible for the pick position. We will be using value `0.1` indicating picking near the guitar's sound hole. The filter would be represented in code as another function:
 
 ```go
 const beta = 0.1
@@ -232,7 +232,7 @@ func oneZeroStringDamping(samples []float64, n, N int) float64 {
 }
 ```
 
-Then we have **the string-stiffness allpass filter** on the list. To be honest, I could not find a way to expand its Z-transform into a more workable form we would use:
+Then we have **the string-stiffness allpass filter** on the list. To be honest, I could not find a way to expand its Z-transform into a more useful form we could work with:
 
 $$ H_s(z) = z^{-K} \dfrac{\tilde{A}(z)}{A(z)} $$
 
@@ -364,7 +364,7 @@ type synthesizer interface {
 }
 ```
 
-Once we defined a note and synthesizer, we can move on to playing and recording. To manipulate sound in Go, we are going to use a package called [beep](https://github.com/faiface/beep). This package provides ways to control, transform, and transfer our sound data. The core abstraction all these actions use is the `Streamer` interface, which is somewhat similar to `io.Reader`, but for audio:
+Once we defined a note and synthesizer, we can move on to playing and recording. To manipulate sound in Go, we are going to use a package called [beep](https://github.com/faiface/beep). This package provides ways to control, transform, and transfer sound data. The core abstraction all these actions use is the `Streamer` interface, which is somewhat similar to `io.Reader`, but for audio:
 
 ```go
 type Streamer interface {
@@ -373,7 +373,7 @@ type Streamer interface {
 }
 ```
 
-`Stream` takes `samples` in and returns the number of streamed samples and whether it's reached the end. `samples` is a streaming buffer for the left and right channels, that's why its type is `[][2]float64`. As the name implies, `Err` just signals if there was an error in streaming.
+`Stream` takes `samples` in and returns a number of streamed samples and whether it's reached the end. `samples` is a streaming buffer for the left and right channels, that's why its type is `[][2]float64`. As the name implies, `Err` just signals if there was an error in streaming.
 
 Since we are working with a buffer, we need to store the total number of generated samples and the number of processed samples — struct `sound` would be a good place for it:
 
@@ -419,7 +419,7 @@ The `Stream` implementation is fairly simple, but we have to keep an eye on the 
 
 ## Modeling a Guitar
 
-Okay, we are just one struct away from playing and recording sound. We also came closer to the post title, guitars. Not surprisingly, the guitar would be yet another `struct`:
+Okay, we are just one struct away from playing and recording sound. We also came closer to the post title, making guitar music. Not surprisingly, a guitar would be yet another `struct`:
 
 ```go
 type Guitar struct {
@@ -450,7 +450,7 @@ func (g *Guitar) Chord(notes []Note, duration, delay float64) beep.Streamer {
 }
 ```
 
-`Pluck` is simple as it's just a `sound` wrapper. `Chord`, on the other hand, is way more interesting. As a guitar chord is just a set of strings being plucked (almost) at the same time, we can model it as a slice of `Streamer`s, each of which is represented by `sound`. Now, every string starting from the second one is plucked with a slight delay, hence we need to add increasing silence before each pluck and address sound duration accordingly. We can add delays using `beep.Silence`, which is also a `Streamer`, and combine two streamers together with `beep.Seq`. Once all streamers're added to the resulting slice, we pass it to `beep.Mix`, effectively producing a new streamer that would play them at the same time. Example of a C-chord:
+`Pluck` is simple as it's just a `sound` wrapper. `Chord`, on the other hand, is way more interesting. As a guitar chord is just a set of strings being plucked (almost) at the same time, we can model it as a slice of `Streamer`s, each of which is represented by `sound`. Now, every string starting from the second one is plucked with a slight delay, hence we need to add increasing silence before each pluck and address sound duration accordingly. We can add delays using `beep.Silence`, which is also a `Streamer`, and combine two streamers together with `beep.Seq`. Once all streamers are added to the resulting slice, we pass it to `beep.Mix`, effectively producing a new streamer that would play them all at the same time. Example of a C-chord:
 
 {% include audio.html src="/assets/audio/c-chord.wav" %}
 
@@ -458,7 +458,7 @@ func (g *Guitar) Chord(notes []Note, duration, delay float64) beep.Streamer {
 
 {% include audio.html src="/assets/audio/c-chord-no-delay.wav" %}
 
-The bigger `delay` gets, the more it sounds like a broken chord. Once `delay` hits value `duration / len(notes)` it becomes full arpeggio:
+The bigger `delay` gets, the more it sounds like a broken chord. Once `delay` hits value `duration / len(notes)` it becomes arpeggio:
 
 {% include audio.html src="/assets/audio/arpeggio.wav" %}
 
