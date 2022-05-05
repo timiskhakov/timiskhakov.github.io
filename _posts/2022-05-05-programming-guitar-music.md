@@ -1,7 +1,7 @@
 ---
 layout: post
 title: Programming Guitar Music
-excerpt: From a making a beep to performing a "guitar" cover
+excerpt: From making a beep to performing a "guitar" cover
 ---
 
 In this blog, I usually write about approaches and technologies that help us build more efficient software. But this time round we're going to do something different. We'll talk about sound waves, learn how they're stored in computers, simulate a guitar string sound, and perform a cover of Johnny Cash's version of Hurt — in a geeky way. So we won't use any pre-recorded samples, sequencers, or — heaven forbid — actual guitars. Instead, we will employ a little bit of math, Go, and a few helper libraries for audio processing.
