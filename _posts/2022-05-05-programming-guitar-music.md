@@ -1,7 +1,7 @@
 ---
 layout: post
 title: Programming Guitar Music
-excerpt: From a making a beep to performing a guitar cover
+excerpt: From a making a beep to performing a "guitar" cover
 ---
 
 In this blog, I usually write about approaches and technologies that help us build more efficient software. But this time round we're going to do something different. We'll talk about sound waves, learn how they're stored in computers, simulate a guitar string sound, and perform a cover of Johnny Cash's version of Hurt — in a geeky way. So we won't use any pre-recorded samples, sequencers, or — heaven forbid — actual guitars. Instead, we will employ a little bit of math, Go, and a few helper libraries for audio processing.
@@ -58,7 +58,7 @@ We will come to the method that records sound a bit later. For now, let's just p
 
 {% include audio.html src="/assets/audio/tune.wav" %}
 
-Sure, it doesn't sound bad, but not particularly pleasant either. Luckily, we have an interesting algorithm which would make the same tune sound as it was played on a guitar.
+Well, that's surely something, but it doesn't sound particularly pleasant. Luckily, we have an interesting algorithm which would make the same tune sound as it was played on a guitar.
 
 ## Karplus-Strong Algorithm
 
