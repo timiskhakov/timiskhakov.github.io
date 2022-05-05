@@ -4,7 +4,7 @@ title: Programming Guitar Music
 excerpt: From a making a beep to performing a guitar cover
 ---
 
-In this blog, I usually write about techniques and approaches that help us build more efficient software. But this time round we're going to do something different. We'll talk about sound waves, learn how they're stored in computers, simulate a guitar string sound, and perform a cover of Johnny Cash's version of Hurt — in a geeky way. So we won't use any pre-recorded samples, sequencers, or — heaven forbid — actual guitars. Instead, we will employ a little bit of math, Go, and a few helper libraries for audio processing.
+In this blog, I usually write about approaches and technologies that help us build more efficient software. But this time round we're going to do something different. We'll talk about sound waves, learn how they're stored in computers, simulate a guitar string sound, and perform a cover of Johnny Cash's version of Hurt — in a geeky way. So we won't use any pre-recorded samples, sequencers, or — heaven forbid — actual guitars. Instead, we will employ a little bit of math, Go, and a few helper libraries for audio processing.
 
 But first, let's dive into the underlying theory. We won't be talking about the physics of sound waves and all the rest of it, but only glance over some concepts to establish common ground we're going to build our code upon.
 
@@ -69,10 +69,14 @@ The Karplus-Strong algorithm described in [this article](https://ccrma.stanford.
 What happens here is the following:
 
 1. We generate a short array of noise, that is, an array of random numbers. Its size is directly connected to the sound's frequency, as it should be calculated as `SampleRate / frequency`.
-2. We pass the noise array through a delay line, effectively producing new samples.
+2. We pass the noise array through a delay line, effectively producing new samples. The delay line is a component that models sound's propagation delay.
 3. We apply a lowpass filter to pass low-frequency values and impede high-frequency values, making the sound more muffled and smooth.
 
-There are many variations of a lowpass filter, but we are going to use the one defined in the article:
+The delay line is fairly easy to express:
+
+$$ y(n) = x(n - N) $$
+
+Where `N` is the size of the noise array. There are many variations of a lowpass filter, but we are going to use the one defined in the article:
 
 $$ y(n) = \dfrac{x(n) + x(n + 1)}{2} $$
 
@@ -98,7 +102,7 @@ func Synthesize(frequency float64, duration float64) []float64 {
 }
 ```
 
-First, we create a slice of random numbers `noise`. Then we create our output and fill in the first samples with the `noise`. The rest of the samples are calculated according to the formula, but we have to shift `noise`, that's why we subtract `len(noise)` in calculations.
+First, we create a slice of random numbers `noise`. Then we create our output and fill in the first samples with the `noise`. The rest of the samples are calculated according to the formula, but we have to shift `noise` to take the delay line into account, that's why we subtract `len(noise)` in the calculations.
 
 Let's try the same first string:
 
@@ -167,18 +171,18 @@ The expanded version of the formula:
 
 $$ y(n) = x(n) - x(n - int(\beta N + \frac 1 2)) $$
 
-Coefficient `β` is responsible for the pick position. We will be using value `0.1` indicating picking near the guitar's sound hole. The filter would be represented in code as another function:
+Coefficient `β` which has a constraint `0 <= β <= 1` is responsible for the pick position. We will be using value `0.1` indicating picking near the guitar's sound hole. The bigger the value, the further away from the sound hole picking is. The filter would be represented in code as another function:
 
 ```go
-const beta = 0.1
+const b = 0.1
 
 func pickPositionComb(noise []float64) {
-  pick := int(beta*float64(len(noise)) + 1/2)
+  pick := int(b*float64(len(noise)) + 0.5)
   if pick == 0 {
     pick = len(noise)
   }
   buffer := make([]float64, len(noise))
-  for i := 0; i < len(noise); i++ {
+  for i := range noise {
     if i-pick < 0 {
       buffer[i] = noise[i]
     } else {
@@ -189,7 +193,7 @@ func pickPositionComb(noise []float64) {
 }
 ```
 
-We just calculate the `pick` value and apply the formula. One thing to note here: if `pick` was zero, we would assign `pick` value to the size of `noise`, effectively turning the filter off.
+We just calculate the `pick` value and apply the formula. One thing to note here: if `pick` ends up being rounded to zero by the integer conversion, we would assign `pick` value to the size of `noise`, effectively turning the filter off.
 
 ### Single Sample Filters
 
@@ -197,7 +201,7 @@ Following arrows on the diagram, we start exploring single sample filters with t
 
 $$ H(z) = z^{-N} $$
 
-Translating to:
+Translating to something familiar as we were using the same delay line formula in the basic Karplus-Strong:
 
 $$ y(n) = x(n - N) $$
 
@@ -286,13 +290,13 @@ func dynamicLevelLowpass(samples []float64, w float64) {
     buffer[i] = w/(1+w)*(samples[i]+samples[i-1]) + (1-w)/(1+w)*buffer[i-1]
   }
 
-  for i := 0; i < len(samples); i++ {
+  for i := range samples {
     samples[i] = (math.Pow(l, 4/3) * samples[i]) + (1-l)*buffer[i]
   }
 }
 ```
 
-Just for convenience, we compute `w` in the caller code and pass it down to the function. Here we again create a buffer for storing filtered samples. Then we apply the first formula to the first buffer element manually (not forgetting that the second term in the formula would give us `0` due to the negative index). Next, we apply the first formula to the rest of the buffer. Finally, we apply the second formula to all samples.
+Just for convenience, we compute `w` in the caller code and pass it down to the function. Here we again create a buffer for storing filtered samples. Then we apply the first formula to the first buffer element manually (keeping in mind that the second term in the formula would give us `0` due to the negative index). Next, we apply the first formula to the rest of the buffer. Finally, we apply the second formula to all samples.
 
 ### Putting It All Together
 
@@ -309,7 +313,7 @@ func Synthesize(frequency float64, duration float64) []float64 {
   pickPositionComb(noise)
 
   samples := make([]float64, int(SampleRate*duration))
-  for i := 0; i < len(noise); i++ {
+  for i := range noise {
     samples[i] = noise[i]
   }
 
@@ -502,7 +506,7 @@ It would be strange to assemble a guitar literally from scratch and to put it in
 
 I know, I know, this "guitar" barely reaches a MIDI level, but hey, we just synthesized its sound literally out of nowhere. Besides, this rendition is performed by a soulless machine, we gotta ~~respect our future overlords~~ cut it some slack! On a more serious note, I think using generative algorithms might help find suitable constants for improving the synthesis and making it sound more real. But that's a story for another time.
 
-Many thanks to [Daiwery](https://github.com/Daiwery) for the initial research[^2] and inspiration.
+Many thanks to Daiwery for the initial research[^2] and inspiration and to Tero Nurmiluoto for a very thorough review.
 
 You can check out the code from this post on GitHub: [music](https://github.com/timiskhakov/music).
 
