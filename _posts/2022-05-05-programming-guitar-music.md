@@ -491,7 +491,7 @@ speaker.Play(music)
 Or record it to a file:
 
 ```go
-f, _ := os.Create("music.go")
+f, _ := os.Create("music.wav")
 defer f.Close()
 
 format := beep.Format{SampleRate: SampleRate, NumChannels: 2, Precision: 2}
