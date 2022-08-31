@@ -58,7 +58,7 @@ When a client wants to send data to or receive data from the server, a TCP sessi
 
 First, a client sends a packet with the SYN (synchronize) flag to the server that listens to incoming connections. The SYN packet provides the session's details. Then the server replies with the ACK/SYN (acknowledgment and synchronize) flag. Finally, the client replies with an ACK.
 
-When transmitting data through a stream, TCP uses a sequence number attached to each packet. The initial value is set during the handshake. The receiver uses this number to arrange the packets in the right order, to acknowledge receipt, and to send the acknowledgment back to the sender. The sender then checks if this acknowledgment number matches the one it sent and retransmits the packets with higher numbers.
+When transmitting data through a stream, TCP uses a sequence number attached to each packet. The initial value is set during the handshake. The receiver uses this number to arrange the packets in the right order, to acknowledge receipt, and to send the acknowledgement back to the sender. The sender then checks if this acknowledgment number matches the one it sent and retransmits the packets with higher numbers.
 
 Once the communication is done, a similar handshake is performed in order to close the session.
 
@@ -88,7 +88,7 @@ A TCP session provides a bi-directional stream for sending data between the node
 
 Another problem is possible protocol improvements and the Internet ossification. The Internet is essentially a network of networks, and those networks are full of devices that help transmit data, like routers, NATs, and gateways. If we wanted to make an improvement to TCP or UDP, all these devices would need to adopt it, which would probably take years.
 
-In order to establish a single TCP and TLS session, a client should perform a number of round trips accross the network. It's not a problem per se, but wouldn't it be nice to reduce it down to just one? Or even zero?
+In order to establish a single TCP and TLS session, a client should perform a number of round trips across the network. It's not a problem per se, but wouldn't it be nice to reduce it down to just one? Or even zero?
 
 And here's when QUIC comes to the rescue.
 
@@ -349,7 +349,7 @@ With both the client and server implemented, let's run them and see how the chat
 ![Chat](/assets/images/chat.gif)
 {: refdef}
 
-On the left pane we have the server showing who has connected, while on the right pane we have two clients, [Cave Johnson](https://theportalwiki.com/wiki/Cave_Johnson) and [GLaDOS](https://theportalwiki.com/wiki/GlaDOS), talking to each other. Using a network inspection tool, like [Wireshark](https://www.wireshark.org/), we can verify that both parties do indeed talk over QUIC and even explore individual packets.
+On the left pane we have the server showing who has connected, while on the right pane we have two clients talking to each other. Using a network inspection tool, like [Wireshark](https://www.wireshark.org/), we can verify that both parties do indeed talk over QUIC and even explore individual packets.
 
 You can check out the code from this post on GitHub: [quic-chat](https://github.com/timiskhakov/quic-chat).
 
