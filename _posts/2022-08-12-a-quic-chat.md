@@ -32,7 +32,7 @@ Let's break the TCP/IP stack down layer by layer, going bottom-up:
 
 2. The internet layer is responsible for routing packets between nodes over the networks. This layer tells the data that comes up from the link layer where to go next.
 
-3. The transport layer that seats on top of the first two provides well-known TCP and UDP protocols — we will talk about them in a moment. When working on this level, we, developers, are abstracted away from how data is actually being routed and transmitted over the network. The link and internet layers are still there doing their job, but on the transport level we don't have to think about the specifics.
+3. The transport layer that seats on top of the first two provides well-known TCP and UDP protocols, that stand for Transmission Control Protocol and User Datagram Protocol, respectively — we will talk about them in a moment. When working on this level, we, developers, are abstracted away from how data is actually being routed and transmitted over the network. The link and internet layers are still there doing their job, but on the transport level we don't have to think about the specifics.
 
 4. Finally, on the application layer we deal with, well, application-level protocols, such as HTTP or SMTP. These protocols decode data from bytes to something more meaningful for our applications, like JSON documents.
 
@@ -48,7 +48,7 @@ This is, of course, a fairly simplified picture of the TCP/IP stack, but it shou
 
 ### TCP
 
-When we make requests over the Internet, they normally travel through a bunch of networks connected via physical devices until they reach the destination server. One can check a request's route by executing the `traceroute {url}` command on a Unix-like system or `tracert {url}` on Windows. With that many moving parts, failures may and do happen: packets get lost, networks are being congested, devices fail. TCP takes care of all that by ensuring that packets are delivered in the right order, retransmitting lost packets, and adapting the data transfer rate — in other words, it makes the connection reliable.
+When we make requests over the Internet, they normally travel through a bunch of networks connected via physical devices until they reach the destination server. With that many moving parts, failures may and do happen: packets get lost, networks are being congested, devices fail. TCP takes care of all that by ensuring that packets are delivered in the right order, retransmitting lost packets, and adapting the data transfer rate — in other words, it makes the connection reliable.
 
 When a client wants to send data to or receive data from the server, a TCP session has to be created first. Once created, it allows for sending a stream of data back and forth between the parties. The session starts with a three-way handshake:
 
@@ -66,9 +66,11 @@ Once the communication is done, a similar handshake is performed in order to clo
 
 Unlike TCP that takes care of transmission reliability, the UDP protocol couldn't care less about it. UDP does not have sessions, delivery confirmation, or packet retransmission. When sending data over UDP, the sender doesn't even know if the receiver is available. All UDP does is send packets to a specified destination. It is nevertheless a vital part of the stack and is widely used in certain scenarios, such as streaming or online multiplayer games.
 
-The absence of all these features, however, makes UDP useful for when packet loss is tolerable and transmission speed is priority. However, using UDP doesn't mean we can't reliably transfer data. We simply need to move ensuring reliability to an application layer protocol. For example, [TFTP](https://en.wikipedia.org/wiki/Trivial_File_Transfer_Protocol) uses UDP as a transport protocol and implements some TCP features, such as packet acknowledgement and retransmission.
+The absence of all these features, however, makes UDP useful for when packet loss is tolerable and transmission speed is priority. Using UDP doesn't mean we can't reliably transfer data, though. We simply need to move ensuring reliability to an application layer protocol. For example, [TFTP](https://en.wikipedia.org/wiki/Trivial_File_Transfer_Protocol) uses UDP as a transport protocol and implements some TCP features, such as packet acknowledgement and retransmission.
 
 ### TLS
+
+In the early days of the Internet, data was transmitted as is without any kind of protection. Effectively, any node between the client and server could potentially read it. Lately, when passwords and credit card numbers started to float around, it became quite a concern. This is when TLS, designed to provide communication security, gained popularity and wide adoption.
 
 Just like TCP, TLS also uses a handshake to establish a stateful TLS session:
 
@@ -76,7 +78,7 @@ Just like TCP, TLS also uses a handshake to establish a stateful TLS session:
 ![TLS Handshake](/assets/images/tls-handshake.png)
 {: refdef}
 
-First, the client is requesting the server to establish a TLS session providing a TLS version, ciphers for the encryption, and the client's public key. The server then replies with the cipher it's going to use, its own public key, and a certificate that the server is truly what the client thinks it is. Next, the client verifies the certificate with a certificate authority. The certificate is usually issued by an authority that both client and server trust, for example [Let's Encrypt](https://letsencrypt.org). Both the client and the server have to derive a signature and a message authentication code from each other's public keys in order to verify the integrity of encrypted data. Once the handshake is performed, the client can start sending encrypted data to the server.
+First, the client requests the server to establish a TLS session providing a TLS version, ciphers for the encryption, and the client's public key. The server then replies with the cipher it's going to use, its own public key, and a certificate indicating that the server is truly what the client thinks it is. Next, the client verifies the certificate with a certificate authority. The certificate is usually issued by an authority that both client and server trust, for example [Let's Encrypt](https://letsencrypt.org). Both the client and the server have to derive a signature and message authentication code from each other's public keys in order to verify the integrity of encrypted data. Once the handshake is performed, the client can start sending encrypted data to the server.
 
 ### Problems
 
@@ -96,7 +98,7 @@ QUIC is a transport protocol that's built on top of UDP. It implements all the s
 
 QUIC also addresses the problems from above. It introduces a concept of independent streams, so that if a stream's packet gets dropped, other streams would continue to work. Unlike TCP and UDP that are situated in kernelspace, QUIC is a userspace protocol, that is, it can be patched and can evolve at a much faster speed. Last but not least, it reduces latency by offering one- and zero-roundtrip handshakes. In other words, QUIC is, well, quick (I know, I know, everyone and their mother made this joke already, but I couldn't resist).
 
-During the QUIC handshake, a client sends an initial request containing all the data needed to establish a connection. The server replies with a response providing acknowledgement, a TLS certificate, and other information. Effectively, the connection is set, starting from the next request that would acknowledge server's data the client can send actual payload.
+During the QUIC handshake, a client sends an initial request containing all the data needed to establish a connection. The server replies with a response providing acknowledgement, a TLS certificate, and other information. Effectively, the connection is set, starting from the next request that would acknowledge server's data the client can send the actual payload.
 
 {:refdef: style="text-align: center;"}
 ![QUIC Handshake](/assets/images/quic-handshake.png)
@@ -280,7 +282,7 @@ type client struct {
 }
 ```
 
-On the client, we want to have two methods: `Send` for sending messages to the server and `Receive` for receiving them from the server. We start with the former:
+On the client, we want to have two methods: `Send` for sending messages to the server and `Receive` for receiving them from the server. We start with the former first:
 
 ```go
 func (c *client) Send(text string) error {
@@ -347,9 +349,7 @@ With both the client and server implemented, let's run them and see how the chat
 ![Chat](/assets/images/chat.gif)
 {: refdef}
 
-On the left pane we have the server showing who has connected, while on the right pane we have two clients, [Cave Johnson](https://theportalwiki.com/wiki/Cave_Johnson) and [GLaDOS](https://theportalwiki.com/wiki/GlaDOS), talking to each other.
-
-Using a network inspection tool, like [Wireshark](https://www.wireshark.org/), we can verify that both parties do indeed talk over QUIC and explore individual packets.
+On the left pane we have the server showing who has connected, while on the right pane we have two clients, [Cave Johnson](https://theportalwiki.com/wiki/Cave_Johnson) and [GLaDOS](https://theportalwiki.com/wiki/GlaDOS), talking to each other. Using a network inspection tool, like [Wireshark](https://www.wireshark.org/), we can verify that both parties do indeed talk over QUIC and even explore individual packets.
 
 You can check out the code from this post on GitHub: [quic-chat](https://github.com/timiskhakov/quic-chat).
 
