@@ -32,7 +32,7 @@ Let's break the TCP/IP stack down layer by layer, going bottom-up:
 
 2. The internet layer is responsible for routing packets between nodes over the networks. This layer tells the data that comes up from the link layer where to go next.
 
-3. The transport layer that seats on top of the first two provides well-known TCP and UDP protocols, that stand for Transmission Control Protocol and User Datagram Protocol, respectively — we will talk about them in a moment. When working on this level, we, developers, are abstracted away from how data is actually being routed and transmitted over the network. The link and internet layers are still there doing their job, but on the transport level we don't have to think about the specifics.
+3. The transport layer that sits on top of the first two provides well-known TCP and UDP protocols, that stand for Transmission Control Protocol and User Datagram Protocol, respectively — we will talk about them in a moment. When working on this level, we, developers, are abstracted away from how data is actually being routed and transmitted over the network. The link and internet layers are still there doing their job, but on the transport level we don't have to think about the specifics.
 
 4. Finally, on the application layer we deal with, well, application-level protocols, such as HTTP or SMTP. These protocols decode data from bytes to something more meaningful for our applications, like JSON documents.
 
@@ -42,15 +42,15 @@ To understand how data flows from one node to another through the layers, we can
 ![TCP/IP](/assets/images/tcp-ip-in-action.png)
 {: refdef}
 
-The picture of the stack wouldn't be complete without the TLS protocol. Despite its name, Transport Layer Security, it seats between the transport and application layers, making sure data in transit is protected. On the sender's side, it encrypts the data before passing it down to the transport layer. On the receiver's end, TLS decrypts data coming from a transport protocol and sends it up to the application layer. TLS allows the client to authenticate the server, that is, to verify that the server is what the client thinks it is, and optionally allows the server to authenticate clients.
+The picture of the stack wouldn't be complete without the TLS protocol. Despite its name, Transport Layer Security, it sits between the transport and application layers, making sure data in transit is protected. On the sender's side, it encrypts the data before passing it down to the transport layer. On the receiver's end, TLS decrypts data coming from a transport protocol and sends it up to the application layer. TLS allows the client to authenticate the server, that is, to verify that the server is what the client thinks it is, and optionally allows the server to authenticate clients.
 
-This is, of course, a fairly simplified picture of the TCP/IP stack, but it should give us an idea of how it works. Now, in the context of this post we are mostly interested in the transport layer on which level QUIC operates. But before we proceed to it, let's talk about TCP, UDP, and TLS.
+This is, of course, a fairly simplified picture of the TCP/IP stack, but it should give us an idea of how it works. Now, in the context of this post we are mostly interested in the transport layer, which is where QUIC operates. But before we proceed to it, let's talk about TCP, UDP, and TLS.
 
 ### TCP
 
 When we make requests over the Internet, they normally travel through a bunch of networks connected via physical devices until they reach the destination server. With that many moving parts, failures may and do happen: packets get lost, networks are being congested, devices fail. TCP takes care of all that by ensuring that packets are delivered in the right order, retransmitting lost packets, and adapting the data transfer rate — in other words, it makes the connection reliable.
 
-When a client wants to send data to or receive data from the server, a TCP session has to be created first. Once created, it allows for sending a stream of data back and forth between the parties. The session starts with a three-way handshake:
+When a client wants to exchange data with the server, a TCP session has to be created first. Once created, it allows for sending a stream of data back and forth between the parties. The session starts with a three-way handshake:
 
 {:refdef: style="text-align: center;"}
 ![TCP Handshake](/assets/images/tcp-handshake.png)
@@ -64,15 +64,15 @@ Once the communication is done, a similar handshake is performed in order to clo
 
 ### UDP
 
-Unlike TCP that takes care of transmission reliability, the UDP protocol couldn't care less about it. UDP does not have sessions, delivery confirmation, or packet retransmission. When sending data over UDP, the sender doesn't even know if the receiver is available. All UDP does is send packets to a specified destination. It is nevertheless a vital part of the stack and is widely used in certain scenarios, such as streaming or online multiplayer games.
+Unlike TCP that takes care of transmission reliability, the UDP protocol does not concern itself with it at all. UDP does not have sessions, delivery confirmation, or packet retransmission. When sending data over UDP, the sender doesn't even know if the receiver is available. All UDP does is send packets to a specified destination. It is nevertheless a vital part of the stack and is widely used in certain scenarios, such as streaming or online multiplayer games.
 
 The absence of all these features, however, makes UDP useful for when packet loss is tolerable and transmission speed is priority. Using UDP doesn't mean we can't reliably transfer data, though. We simply need to move ensuring reliability to an application layer protocol. For example, [TFTP](https://en.wikipedia.org/wiki/Trivial_File_Transfer_Protocol) uses UDP as a transport protocol and implements some TCP features, such as packet acknowledgement and retransmission.
 
 ### TLS
 
-In the early days of the Internet, data was transmitted as is without any kind of protection. Effectively, any node between the client and server could potentially read it. Lately, when passwords and credit card numbers started to float around, it became quite a concern. This is when TLS, designed to provide communication security, gained popularity and wide adoption.
+In the early days of the Internet, data was transmitted as is without any kind of protection. Effectively, any node between the client and server could potentially read it. Lately, when passwords and credit card numbers started floating around, it became quite a concern. This is when TLS, designed to provide communication security, gained popularity and wide adoption.
 
-Just like TCP, TLS also uses a handshake to establish a stateful TLS session:
+To establish a TLS connection the client and server negotiate the common parameters that are to be used during the session:
 
 {:refdef: style="text-align: center;"}
 ![TLS Handshake](/assets/images/tls-handshake.png)
@@ -96,7 +96,7 @@ And here's when QUIC comes to the rescue.
 
 QUIC is a transport protocol that's built on top of UDP. It implements all the smarts for making the connection reliable and incorporates TLS 1.3 to ensure data security.
 
-QUIC also addresses the problems from above. It introduces a concept of independent streams, so that if a stream's packet gets dropped, other streams would continue to work. Unlike TCP and UDP that are situated in kernelspace, QUIC is a userspace protocol, that is, it can be patched and can evolve at a much faster speed. Last but not least, it reduces latency by offering one- and zero-roundtrip handshakes. In other words, QUIC is, well, quick (I know, I know, everyone and their mother made this joke already, but I couldn't resist).
+QUIC also addresses the problems from above. It introduces a concept of independent streams, so that if a stream's packet gets dropped, other streams would continue to work. Unlike TCP and UDP that are implemented in kernelspace, QUIC is a userspace protocol, that is, it can be patched and can evolve at a much faster speed. Last but not least, it reduces latency by offering one- and zero-roundtrip handshakes. In other words, QUIC is, well, quick (I know, I know, everyone and their mother made this joke already, but I couldn't resist).
 
 During the QUIC handshake, a client sends an initial request containing all the data needed to establish a connection. The server replies with a response providing acknowledgement, a TLS certificate, and other information. Effectively, the connection is set, starting from the next request that would acknowledge server's data the client can send the actual payload.
 
@@ -176,7 +176,7 @@ func (s *server) Accept(ctx context.Context) {
 }
 ```
 
-What it does is just block until a new connection is available. Once it's there, we pass it down to `handleConn` spanning a new goroutine. If there's an error in accepting connections or the context was canceled, we print an error and return from the method.
+What it does is just block until a new connection is available. Once it's there, we pass it down to `handleConn` spawning a new goroutine. If there's an error in accepting connections or the context was canceled, we print an error and return from the method.
 
 The `handleConn` method does all the heavy lifting for managing connections:
 
@@ -202,7 +202,7 @@ func (s *server) handleConn(ctx context.Context, conn quic.Connection) {
 }
 ```
 
-First, as good citizens, we defer closing the connection. Then we add it to the `clients` map for broadcasting incoming messages from other connections. In the `for` loop we wait for messages from a client in a form of `quic.Stream` blocking until the stream is available. If things go south, say, a client had disconnected, we remove it from the map by calling `removeClient`, otherwise we proceed with spanning another goroutine, passing the stream down to the `readMessage` method, and waiting for another stream to come:
+First, as good citizens, we defer closing the connection. Then we add it to the `clients` map for broadcasting incoming messages from other connections. In the `for` loop we wait for messages from a client in a form of `quic.Stream` blocking until the stream is available. If things go south, say, a client had disconnected, we remove it from the map by calling `removeClient`, otherwise we proceed with spawning another goroutine, passing the stream down to the `readMessage` method, and waiting for another stream to come:
 
 ```go
 func (s *server) removeClient(addr string) {
@@ -323,7 +323,7 @@ func (c *client) Receive(ctx context.Context) (<-chan Message, <-chan error) {
 }
 ```
 
-First of all, we define two channels for returning messages and errors, as we don't expect things to always go nice and smooth over the network. Then we span a goroutine for sending messages and errors to these channels, respectively, and immediately return both to the caller — it's a common approach in Go for implementing the producer-consumer pattern. In the goroutine we just spanned, we wait for a stream to come and either: send an error to the `errors` channel, indicating a problem with the connection, or call the `readStream` method spanning yet another goroutine — and continue on waiting for more streams:
+First of all, we define two channels for returning messages and errors, as we don't expect things to always go nice and smooth over the network. Then we spawn a goroutine for sending messages and errors to these channels, respectively, and immediately return both to the caller — it's a common approach in Go for implementing the producer-consumer pattern. In the goroutine we just spawned, we wait for a stream to come and either: send an error to the `errors` channel and return, indicating a problem with the connection, or call the `readStream` method spawning yet another goroutine — and continue on waiting for more streams:
 
 ```go
 func (c *client) readStream(stream quic.Stream, messages chan<- Message, errs chan<- error) {
@@ -350,6 +350,8 @@ With both the client and server implemented, let's run them and see how the chat
 {: refdef}
 
 On the left pane we have the server showing who has connected, while on the right pane we have two clients talking to each other. Using a network inspection tool, like [Wireshark](https://www.wireshark.org/), we can verify that both parties do indeed talk over QUIC and even explore individual packets.
+
+Thanks to Tero Nurmiluoto for reviewing the post.
 
 You can check out the code from this post on GitHub: [quic-chat](https://github.com/timiskhakov/quic-chat).
 
