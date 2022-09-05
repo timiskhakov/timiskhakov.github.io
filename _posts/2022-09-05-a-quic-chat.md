@@ -351,7 +351,7 @@ With both the client and server implemented, let's run them and see how the chat
 
 On the left pane we have the server showing who has connected, while on the right pane we have two clients talking to each other. Using a network inspection tool, like [Wireshark](https://www.wireshark.org/), we can verify that both parties do indeed talk over QUIC and even explore individual packets.
 
-Thanks to Tero Nurmiluoto for reviewing the post.
+Thanks to Tero Nurmiluoto for carefully reviewing the post and suggesting numerous improvements.
 
 You can check out the code from this post on GitHub: [quic-chat](https://github.com/timiskhakov/quic-chat).
 
