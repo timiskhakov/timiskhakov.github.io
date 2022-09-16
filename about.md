@@ -10,4 +10,5 @@ In this blog, I usually write about approaches and techniques that help us build
 
 ### Public Talks
 
-- "Exploring Spans and Pipelines" at [Tampere.NET first meetup](https://meetabit.com/events/first-meetup) on February 2020: [slides](https://github.com/timiskhakov/ExploringSpansAndPipelines/blob/master/exploring-spans-and-pipelines.pdf)
+- "Programming Guitar Music" at a [GDG Berlin Golang meetup](https://www.meetup.com/golang-users-berlin/events/288051077) in September 2022: [slides](https://github.com/timiskhakov/music-slides)
+- "Exploring Spans and Pipelines" at [Tampere.NET first meetup](https://meetabit.com/events/first-meetup) in February 2020: [slides](https://github.com/timiskhakov/ExploringSpansAndPipelines/blob/master/exploring-spans-and-pipelines.pdf)
