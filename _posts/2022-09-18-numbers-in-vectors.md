@@ -219,7 +219,7 @@ public unsafe uint[] Parse(string value)
 ```
 
 There's a lot to take in, so let's tackle main points one by one:
-1. As in the optimized solution, we need to count numbers first, so that we know how many numbers we need to parse and allocate an array of proper size. Since the amount of numbers is just the amount of commas plus 1, we would count commas as it's easier to do (we leave the implementation for the next subsection). We also need to set two counters, `processed` and `amount`. The former tracks the number of bytes processed to advance the input and load a correct substring into a vector. The latter serves for counting parsed numbers that were added to the `result` array.
+1. As in the optimized solution, we need to count numbers first, so that we know how many numbers we need to parse and allocate an array of proper size. Since the amount of numbers is just the amount of commas plus 1, we'll count commas as it's easier to do (we leave the implementation for the next subsection). We also need to set two counters, `processed` and `amount`. The former tracks the number of bytes processed to advance the input and load a correct substring into a vector. The latter serves for counting parsed numbers that were added to the `result` array.
 2. Next, we allocate a small array to re-use it as an output from the method that parses a vector. Since the maximum amount of numbers we can theoretically parse is only eight, there won't be any harm if we allocate it on the stack.
 3. Then we load a substring into a vector and parse it. `ParseVector` returns the number of bytes processed within the vector and the amount of numbers it placed into the `output` array.
 4. The numbers are then added to the `result` array and we advance both counters, `processed` and `amount`.
@@ -360,7 +360,7 @@ Finally, in a big giant `switch` we select a parsing function and pass our shuff
 
 ### Precalculating Data
 
-Effectively, each pattern we could get is uniquely represented by a 16-bit number. Since we know all possible patterns — `2^16` which is 65,536 — we can precalculate all the information we need in advance: the amount of numbers, their maximum size, bytes the pattern processed, and the shuffle mask. All that would form a structure that we call a `Block`:
+Effectively, each pattern we could get is uniquely represented by a 16-bit number. Since we know all possible patterns — `2^16` which is 65,536 — we can precalculate all the information we need in advance: the amount of numbers, their maximum size, bytes the pattern processed, and the shuffle mask. All that form a structure that we call a `Block`:
 
 ```csharp
 public class Block
@@ -374,7 +374,7 @@ public class Block
 }
 ```
 
-I'll omit code for calculating block's data for brevity, but you can check it out using the repo link at the end of the post. Since the blocks are going to be precalculated on the application startup, we don't need to squeeze performance out of their calculations, so we'll try to keep them simple as possible.
+I'll omit code for calculating block's data for brevity, but you can check it out using the repo link at the end of the post. Since the blocks are going to be precalculated on the application startup, we don't need to squeeze performance out of their calculations, so we'll try to keep them as simple as possible.
 
 Let's just have a look at how a block is formed by using our example from the **Analysis** section. We had the following sequence:
 
