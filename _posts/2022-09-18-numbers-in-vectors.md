@@ -4,30 +4,30 @@ title: Numbers in Vectors
 excerpt: Analyzing and implementing a SIMD algorithm for parsing a series of integers
 ---
 
-Every now and then my friend [Alexei](https://github.com/AlexeiMatrosov) and I play a fun little game unofficially called "Can you make it faster?" We would send each other a piece of code, usually something we've been working on recently, and ask if it's possible to speed it up. Normally, this code solves a particular problem, works on a determined input, and has an existing solution that most likely runs in production. I've [written](https://timiskhakov.github.io/posts/dnd-and-algorithms) about one such game a while ago. Since it's just for fun, it is allowed to use unsafe code, call external libraries written in other languages, cache things extensively, and exploit hardware-specific features — all bets are off.
+Every now and then my friend [Alexei](https://github.com/AlexeiMatrosov) and I play a fun little game unofficially called "Can you make it faster?" We send each other a piece of code, usually something we've been working on recently, and try to figure out if it's possible to speed it up. Normally, this code solves a particular problem, works on a determined input, and has an existing solution that most likely runs in production. I [wrote](https://timiskhakov.github.io/posts/dnd-and-algorithms) about one such game a while ago. Since it's just for fun, it is allowed to use unsafe code, call external libraries written in other languages, cache things extensively, and exploit hardware-specific features — anything goes.
 
-The other day Alexei sent me a problem looking innocent on the surface along with his solution and asked if I can make it faster. That got me quite deep into the rabbit hole of SIMD programming, but eventually I managed to find an approach that might be worth taking a look at. In this post, we are going to analyze this algorithm, implement it in C#, and see if our solution beats Alexei's. Before we dive into that, though, let's properly formulate the problem.
+The other day, Alexei sent me a problem that looked innocent on the surface along with his solution and asked if I could make it faster. That led me quite deep into the rabbit hole of SIMD programming, but eventually I managed to find an approach that might be worth taking a look at. In this post, we are going to analyze this algorithm, implement it in C#, and see if our solution beats Alexei's. Before we dive into the weeds, though, let's properly formulate the problem.
 
 ## Problem
 
-Given a string containing non-negative integers separated by commas, we have to parse it and return an array of unsigned integers. That is, given the input:
+Let's say we have a string containing non-negative integers separated by commas, that we need to parse and return an array of unsigned integers. For example, after processing the input:
 
 ```
 "123,456,789"
 ```
 
-We need to process it and return an array:
+the following array is returned:
 
 ```
 [123, 456, 789]
 ```
 
 The string is encoded in UTF-8. The range of possible values spans between `0` and `uint.MaxValue` which is 4,294,967,295. For simplicity, we assume that the input is valid, in other words:
-- no other characters apart from commas and digits are presented in the string
-- no other comma follows after a comma 
+- no other characters apart from commas and digits are included in the string
+- no comma is followed by another comma
 - the string starts and ends with a digit
 
-Since we're going to implement our solutions in .NET, it's important to note that the type we return is `uint[]`, neither `IEnumerable<uint>` nor some other interface — that's part of the requirement.
+Since we're going to implement our solutions in .NET, it's important to note that the type we return is `uint[]`, not `IEnumerable<uint>` or some other interface — that's part of the requirement.
 
 ## Naive Solution
 
@@ -58,7 +58,7 @@ This is, of course, a simple and easy-to-read solution, however, it can be impro
 
 ## Optimized Solution
 
-One problem we have in the naive solution is memory allocations when adding elements to the `result`. `List` uses an array internally to store elements and creates a bigger array copying all values from the current one once its capacity is reached. Also, at the very end, we need to conform to the required return type by calling `ToArray` effectively creating another array and copying all values from the `result`.
+In the naive solution, there is a problem with memory allocations when adding elements to the `result`. `List` uses an array internally to store elements and creates a bigger array copying all values from the current one once its capacity is reached. Also, at the very end, we need to conform to the required return type by calling `ToArray`, effectively creating another array and copying all values from the `result`.
 
 Alexei made an interesting optimization to avoid additional allocations and copying values between arrays:
 
@@ -89,9 +89,9 @@ public uint[] Parse(string value)
 }
 ```
 
-First, we need to count the number of commas we have in the input string, so we would know how many numbers we need to parse. Hence, we allocate the output array only once as we know its final size. Indeed, we need to do this additional pass through the array, but as will soon see, it works faster and saves us some memory. Next, we apply a similar logic for scanning numbers as we did in the naive solution. Once we reach the last comma, we just parse the rest of the string.
+First, we need to count the number of commas we have in the input string, so we would know how many numbers we need to parse. This way, we allocate the output array only once as we know its final size. Indeed, we need to do this additional pass through the array, but as we will soon see, it works faster and saves us some memory. Next, we apply a similar logic for scanning numbers as we did in the naive solution. Once we reach the last comma, we just parse the rest of the string.
 
-Now, if we benchmark both solutions on different inputs we can see the benefits of the second approach:
+Now, if we benchmark both solutions on different inputs we can see the benefits of this approach:
 
 ```
 |    Method |     Value |             Mean |  Allocated |
@@ -109,15 +109,15 @@ Now, if we benchmark both solutions on different inputs we can see the benefits 
 | Optimized | 0-999,999 | 21,352,869.17 ns |  4000081 B |
 ```
 
-This solution is tightly optimized, so it would be hard to beat. However, it only parses one number at a time, but what if we could parse several numbers at once? You guessed it right, I'm talking about using SIMD — single instruction, multiple data — processing.
+This solution is tightly optimized, so it would be hard to beat it. However, it only parses one number at a time, but what if we could parse several numbers at once? You guessed it right, I'm talking about using SIMD — single instruction, multiple data — processing.
 
 ## SIMD Solution: Analysis
 
-We have [talked](https://timiskhakov.github.io/posts/haystacks-needles-and-hardware-intrinsics) about SIMD a while ago, so I won't dive into details this time. Just to recap, modern x86 CPUs[^1] have various extensions that support processing multiple data with only one instruction. They provide additional registers for packed data and a set of instructions to operate on them. Most of the instructions are available for programmers through intrinsic functions that lately became available in .NET.
+We have [talked](https://timiskhakov.github.io/posts/haystacks-needles-and-hardware-intrinsics) about SIMD in the past, so I won’t get into details this time. Just to recap, modern x86 CPUs[^1] have various extensions that support processing multiple data with only one instruction. They provide additional registers for packed data and a set of instructions to operate on them. Most of the instructions are available for programmers through intrinsic functions that lately became available in .NET.
 
 For our SIMD solution we are going to need a CPU that supports [AVX2](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions), basically, any x86 processor that came out after 2013. Luckily for us, we don't need to invent an algorithm that enables vectorized parsing from scratch. Wojciech Muła wrote an excellent article [Parsing series of integers with SIMD](http://0x80.pl/articles/simd-parsing-int-sequences.html) that describes the algorithm and its implementation in C++ in detail. What we are going to do is analyze it and port the code to C#.
 
-The core idea behind the SIMD approach is to read the input substring by substring loading each of them into a vector, to shuffle the vector so that the numbers go one after another omitting the commas, and to parse the numbers altogether.
+The core idea behind the SIMD approach is to read the input substring by substring, loading each of them into a vector, to shuffle the vector so that the numbers go one after another, omitting the commas, and to parse the numbers altogether.
 
 We start by determining the size of the vector. In theory, the bigger it gets, the more data we can process at a time, but it's not that simple in practice. Since we know that the input string can only contain numbers and commas, we will use bytes for storing characters, that is, one byte for one character. AVX2 allows us to use 256-bit (or 32-byte) registers, but there is a catch: a 256-bit register is partitioned into two 128-bit lanes. It's not a problem for most instructions, but when it comes to reordering elements within a vector representing the register's data, it's not possible to perform such an instruction cross-lane[^2]. So, it leaves us with a 128-bit (or 16-byte) vector that would hold our data.
 
@@ -133,20 +133,20 @@ At this point we don't care about particular digits, we may as well convert the 
 1011011101111011
 ```
 
-Each number occurrence, like `1`, `11`, or `111`, forms a span that is of our interest. Looking at the pattern we can deduct a few things:
-- amount of numbers (or spans)
-- size of the numbers, that is, how many digits each has
+Each number occurrence, like `1`, `11`, or `111`, forms a span that is of interest to us. Looking at the pattern we can deduct a few things:
+- the amount of numbers (or spans)
+- the size of the numbers, that is, how many digits each has
 - how many bytes we can process
 
-The last thing is interesting. The pattern ends with two digits, so we can't be sure that there won't be any following digits. Thus, we can say that we only processed 14 bytes. If the pattern would end with a comma, like this:
+The last point is interesting. The pattern ends with two digits, so we can’t be sure that there aren't any following digits that would form a number. Thus, we can say that we only processed 14 bytes. If a pattern would end with a comma, like this one:
 
 ```
 1111011101101110
 ```
 
-We could safely assume that we processed 16 bytes. When we load the next substring into the vector, we would need to advance the input to the number of bytes we processed.
+We could safely assume that we processed all 16 bytes. When we load the next substring into the vector, we would need to advance the input to the number of bytes we processed.
 
-Next thing we need is to normalize the pattern, reorder and exclude some spans, and adjust the number of processed bytes if needed. For that, we are going to determine the maximum size of the spans and round it to the next power of two if it's greater than 1. This way we will get the maximum size of 1, 2, 4, 8, or 16. Using it, we can divide our vector into slots in one of the following combinations: 16 slots for 1-digit spans, 8 slots for 2-digit spans, 4 slots for 4-digit spans, 2 slots for 8-digit spans, or just 1-slot for a 16-digit span[^3].
+Next thing we need is to normalize the pattern, reorder and exclude some spans, and adjust the number of processed bytes if needed. For that, we are going to determine the maximum size of the spans and, if it's greater than 1, round it to the next power of two. This way we will get the maximum size of 1, 2, 4, 8, or 16. Using it, we can divide our vector into slots in one of the following combinations: 16 slots for 1-digit spans, 8 slots for 2-digit spans, 4 slots for 4-digit spans, 2 slots for 8-digit spans, or just 1-slot for a 16-digit span[^3].
 
 Now we can reorder spans into slots. Our example pattern would be reordered into the following vector:
 
@@ -160,11 +160,11 @@ Or, converting the pattern back to the sequence:
 0001002304567890
 ```
 
-If the number's size was less than the maximum size, we'd just padded it with zeros, so `1` becomes `0001`, `23` — `0023`, and `456` — `0456`.
+If the number size was less than the maximum size, we'd just padded it with zeros, so `1` becomes `0001`, `23` — `0023`, and `456` — `0456`.
 
 Knowing that we deal with four 4-digit numbers, we can choose the right SIMD method for the parsing.
 
-There are two things left uncovered: how exactly we shuffle an arbitrary pattern into a vector of equally-sized numbers and the implementation of the parsing methods for each slot size. We will explore both in the next section.
+There are two things left to cover: how exactly we shuffle an arbitrary pattern into a vector of equally-sized numbers, and the implementation of the parsing methods for each slot size. We will explore both in the next section.
 
 ## SIMD Solution: Implementation
 
@@ -218,18 +218,18 @@ public unsafe uint[] Parse(string value)
 }
 ```
 
-There's a lot to take in at once, so let's tackle main points one by one:
-1. As in the optimized solution, we need to count commas first, so that we know how many numbers we need to parse and allocate an array of proper size. We would count commas in a SIMD way, so we leave the implementation for the next section. We also need to set two counters, `processed` and `amount`. The former tracks the number of bytes processed to advance the input and load a correct substring into a vector. The latter serves for counting parsed numbers that were added to the `result` array.
-2. Next, we allocate a small array for re-using as an output from the method that parses a vector. Since the maximum amount of numbers we can theoretically parse is only eight, there won't be any harm if we allocate it on the stack.
+There's a lot to take in, so let's tackle main points one by one:
+1. As in the optimized solution, we need to count numbers first, so that we know how many numbers we need to parse and allocate an array of proper size. Since the amount of numbers is just the amount of commas plus 1, we would count commas as it's easier to do (we leave the implementation for the next subsection). We also need to set two counters, `processed` and `amount`. The former tracks the number of bytes processed to advance the input and load a correct substring into a vector. The latter serves for counting parsed numbers that were added to the `result` array.
+2. Next, we allocate a small array to re-use it as an output from the method that parses a vector. Since the maximum amount of numbers we can theoretically parse is only eight, there won't be any harm if we allocate it on the stack.
 3. Then we load a substring into a vector and parse it. `ParseVector` returns the number of bytes processed within the vector and the amount of numbers it placed into the `output` array.
-4. The numbers then are added to the `result` array and we advance both counters, `processed` and `amount`.
+4. The numbers are then added to the `result` array and we advance both counters, `processed` and `amount`.
 5. Once we finish the SIMD processing, we process the rest of the string by applying the same approach we used in the optimized solution.
 
 Now let's have a look at the methods we used throughout `Parse`. We'll explore `CountCommas` first.
 
 ### Counting Commas
 
-Similarly to the optimized solution, in the SIMD approach, we also do two passes through the string: the first is to count an amount of numbers — or an amount of commas as they're connected — we are going to process and the second is to parse them. While we are employing SIMD for the actual processing, why not speed up the counting of commas as well?
+Similarly to the optimized solution, in the SIMD approach, we also do two passes through the string: the first is to count an amount of numbers — or an amount of commas as they're connected — and the second is to parse them. While we are employing SIMD for the actual processing, why not speed up the counting of commas as well?
 
 ```csharp
 private static readonly Vector128<byte> Commas = Vector128.Create((byte)',');
@@ -258,7 +258,7 @@ private static unsafe uint CountCommas(string value)
 }
 ```
 
-First of all, we need to initialize the `result`. Next, go through the input string dividing it into substrings and loading each into a 128-bit vector using the `LoadInput` method. We compare the input vector against a vector of commas to get a mask. All we need to do then is to count the number of bits in the mask — that would be the number of commas in the substring. Once we are done with vector processing, we count the rest of the commas in a simple loop.
+First of all, we need to initialize the `result`. Next, we go through the input string dividing it into substrings and loading each into a 128-bit vector using the `LoadInput` method. We compare the input vector against a vector of commas to get a mask. All we need to do now is to count the number of bits in the mask — that would be the number of commas in the substring. Once we are done with vector processing, we count the rest of the commas in a simple loop.
 
 For loading a substring into a vector, we need to perform a small trick implemented in `LoadInput`:
 
@@ -278,7 +278,7 @@ private static unsafe Vector128<byte> LoadInput(char* c)
 }
 ```
 
-In .NET, `char` is a 2-byte value that can be represented as `ushort`. The problem is, we need a `byte` representation of the substring. So we load the substring into a 256-bit vector `raw` and represent it as `bytes`. This representation provides an additional byte we don't need, for example, character `1` becomes `{0, 1}` or `{48, 49}` in ASCII due to the 2-byte nature of `char`. So, we shuffle the lower and upper lanes separately using the `RawMask` to put the significant byte first and get rid of `48`. Then we combine the lower parts of the lanes into a new 128-bit vector.
+In .NET, `char` is a 2-byte value that can be represented as `ushort`. The problem is, we need a `byte` representation of the substring. So we load the substring into a 256-bit vector `raw` and represent it as `bytes`. This representation provides an additional byte we don't need, for example, character `1` becomes `{0, 1}`, or `{48, 49}` in ASCII, due to the 2-byte nature of `char`. So, we shuffle the lower and upper lanes separately using the `RawMask` to put the significant byte first and get rid of `48`. Then we combine the lower parts of the lanes into a new 128-bit vector.
 
 A quick illustration for the method would be the following:
 
@@ -302,7 +302,7 @@ The same `LoadInput` is used in `Parse` described in the previous subsection.
 
 ### Parsing a Vector
 
-Okay, we've reached the big boss of the solution, a method that parses the numbers. Let's take a look and explore it:
+Okay, we've reached the big boss of the solution, a method that parses the numbers. Let's explore it:
 
 ```csharp
 private static readonly Vector128<sbyte> ZerosAsSByte = Vector128.Create((byte)'0').AsSByte();
@@ -342,17 +342,17 @@ private (int, int) ParseVector(Vector128<byte> input, Span<uint> output)
 }
 ```
 
-The method takes in a vector we prepared in the previous section and a `Span<uint>` that would hold parsed numbers. As denoted earlier, it returns a number of processed bytes and an amount of parsed numbers. The gist of the method is to find a pattern of spans (we discussed it in the **Analysis** section) and shuffle it so that we would know the size and amount of the numbers as well as the number of processed bytes. Then based on the size we would employ one of the parsing methods.
+The method takes in a vector we prepared in the previous subsection and a `Span<uint>` that would hold parsed numbers. As denoted earlier, it returns a number of processed bytes and an amount of parsed numbers. The gist of the method is to find a pattern of spans (we discussed it in the **Analysis** section) and shuffle it so that we would know the size and amount of the numbers as well as the number of processed bytes. Then based on the size we would employ one of the parsing methods.
 
-First, we need to create two temporary vectors by performing a signed compare of the input vector against a vector of zeros and the input vector against a vector of colons. Followed by performing the `Sse2.AndNot` (or `_mm_andnot_si128`) instruction which NOTs the first vector and ANDs it with the second, we would get the span pattern containing digits only.
+First, we need to create two temporary vectors by performing a signed compare of the input vector against a vector of zeros and the input vector against a vector of colons. Followed by performing the `Sse2.AndNot` (or `_mm_andnot_si128`) instruction which NOTs the first vector and ANDs it with the second, we get the span pattern containing digits only.
 
 Next, we compute a pattern's mask and obtain a precalculated block that holds some interesting data we need for the parsing:
-- size of the numbers rounded to the nearest power of two
-- amount of numbers
+- the size of the numbers rounded to the next power of two
+- the amount of numbers
 - bytes processed
-- a shuffle mask that would tell us how to re-arrange the elements in the vector so that it became parsable
+- a shuffle mask that would tell us how to re-arrange the elements in the vector so that it becomes parsable
 
-We will come to the precalculated blocks in an upcoming section.
+We will come to the precalculated blocks in an upcoming subsection.
 
 In order to actually do the in-vector reordering, we need to use the `Ssse3.Shuffle` (or `_mm_shuffle_epi8`) instruction which takes the vector and a mask and produces a new vector shuffled according to the mask.
 
@@ -360,7 +360,7 @@ Finally, in a big giant `switch` we select a parsing function and pass our shuff
 
 ### Precalculating Data
 
-Effectively, each pattern we could get is uniquely represented by a 16-bit number. Since we know all possible patterns — `2^16` which is 65,536 — we can precalculate all the information we need in advance: the amount of numbers, their maximum size, bytes the pattern processed, and the mask for the shuffling. All that would form a structure that we call a `Block`:
+Effectively, each pattern we could get is uniquely represented by a 16-bit number. Since we know all possible patterns — `2^16` which is 65,536 — we can precalculate all the information we need in advance: the amount of numbers, their maximum size, bytes the pattern processed, and the shuffle mask. All that would form a structure that we call a `Block`:
 
 ```csharp
 public class Block
@@ -374,27 +374,27 @@ public class Block
 }
 ```
 
-I'll omit code for calculating block's data for brevity, but you can check it out using the repo link at the end of the post. Since it's going to be precalculated on the application startup, we don't need to squeeze performance out of it, so the calculations would be fairly simple.
+I'll omit code for calculating block's data for brevity, but you can check it out using the repo link at the end of the post. Since the blocks are going to be precalculated on the application startup, we don't need to squeeze performance out of their calculations, so we'll try to keep them simple as possible.
 
-Let's just have a look at how a block forms using our example from the **Analysis** section. We had the following sequence:
+Let's just have a look at how a block is formed by using our example from the **Analysis** section. We had the following sequence:
 
 ```
 1,23,456,7890,12
 ```
 
-That was converted to the pattern:
+That was converted into the pattern:
 
 ```
 1011011101111011
 ```
 
-The pattern has four spans (`1`, `11`, `111`, and `1111`), the number size of 4, and 14 bytes processed. Now we need to check if the 16-bit vector fits all the spans: `Amount * NumberSize  <= VectorSize`. In our example, we are good as `4 * 4 <= 16`, but if we had to deal with a pattern like this:
+The pattern has four spans (`1`, `11`, `111`, and `1111`), the number size of 4, and 14 bytes processed. Now we need to check if the 16-byte vector fits all the spans: `Amount * NumberSize  <= VectorSize`. In our example, we are good as `4 * 4 <= 16`, but if we had to deal with a pattern like this:
 
 ```
 1101110111111101
 ```
 
-We would have three spans (`11`, `111`, and `1111111`), the number size of 8, and 15 bytes processed. Which clearly won't fit the vector: `3 * 8 = 24`. Then we would have to remove the last span and do the number size calculation again and adjust the bytes processed. In that case, we would get two spans (`11` and `111`), the number size of 4 (as we need to round it to the nearest power of two), and 7 bytes processed. The spans fit the vector: `2 * 4 = 8`, but the rest of the pattern has to go to the next batch of processing.
+We would have three spans (`11`, `111`, and `1111111`), the number size of 8, and 15 bytes processed. Which clearly won't fit the vector: `3 * 8 = 24`. Then we would have to remove the last span, do the number size calculation again, and adjust the bytes processed. In that case, we would get two spans (`11` and `111`), the number size of 4 (as we need to round it to the next power of two), and 7 bytes processed. The spans fit the vector: `2 * 4 = 8`, but the rest of the pattern has to go to the next batch of processing.
 
 Coming back to our example, we need to pad the spans with zeros:
 
@@ -428,11 +428,11 @@ Since we go through all possible `ushort` values, we will also create blocks for
 1000000001111111
 ```
 
-Of course, we could exclude those, but since we precalculate this data, it won't matter much if we have a bit more data in the cache.
+Of course, we could exclude those, but since we precalculate the blocks, it won't matter much if we have a bit more data in the cache.
 
 ### Parsing Methods
 
-Last but at least, we have five parsing methods that we need to go over. Let's start with the simplest one, `Parse1DigitNumbers`:
+Last but not least, we have five parsing methods that we need to go over. Let's start with the simplest one, `Parse1DigitNumbers`:
 
 ```csharp
 private static readonly Vector128<byte> Zeros = Vector128.Create((byte)'0');
@@ -449,7 +449,7 @@ private static void Parse1DigitNumbers(Vector128<byte> vector, int amount, Span<
 
 Parsing 1-digit numbers is easy: we have to subtract zero's ASCII code from the vector and, knowing the amount of numbers, get them one by one.
 
-Parsing 2-, 4-, and 8-digit numbers looks somewhat similar, but has a few additional steps involving the `MultiplyAddAdjacent` intrinsic. Let's have a look at `Parse2DigitNumbers` as an example:
+Parsing 2-, 4-, and 8-digit numbers has a few additional steps involving the `MultiplyAddAdjacent` intrinsic. Let's have a look at `Parse2DigitNumbers` as an example:
 
 ```csharp
 private static readonly Vector128<sbyte> Mul10 = Vector128.Create(10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1);
@@ -525,9 +525,11 @@ We've gone a long way, but now it's time to see if it was worth it. Since we're 
 |      Simd | 0-999,999 | 15,935,536.46 ns |  4000080 B |
 ```
 
-Looking at the benchmarks we can draw an obvious conclusion: the more digits the numbers have, the less effective the SIMD solution becomes. This comes as no surprise as we did optimize it for parsing multiple numbers at the same time so that the more digits each number has, the fewer of them we can pack in a vector.
+Looking at the benchmarks we can draw an obvious conclusion: the more digits the numbers have, the less effective the SIMD solution becomes. This comes as no surprise as we did optimize it for parsing multiple numbers at the same time. The less digits numbers have, the more of them we can pack in a vector.
 
-Let's face it, we probably don't want to have this code in our applications: it's unsafe, not portable across different CPU architectures, and not easy to maintain. Unless, of course, we want to have it due to some performance requirements. In this case, it's nice to know that we have a way to squeeze more performance out of code trading it for something else, like portability and maintainability. There's an old saying that goes with every performance-related blog post: don't trust them, always measure performance on your hardware yourself.
+Let's face it, in most cases we don't want to have this kind of code in our applications: it's unsafe, not portable across different CPU architectures, and not easy to maintain. Unless we need to have it due to some performance requirements. In this case, it's good to know that we have a way to squeeze more performance out of code trading it for something else, like portability and maintainability.
+
+There's an old saying that goes with every performance-related blog post: don't trust them, always measure performance on your hardware yourself.
 
 You can check out the code from this post on GitHub: [ParsingNumbers](https://github.com/timiskhakov/ParsingNumbers).
 
