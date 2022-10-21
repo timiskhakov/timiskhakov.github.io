@@ -10,7 +10,7 @@ The other day, Alexei sent me a problem that looked innocent on the surface alon
 
 ## Problem
 
-Let's say we have a string containing non-negative integers separated by commas, that we need to parse and return an array of unsigned integers. For example, after processing the input:
+Let's say we have a string containing non-negative integers separated by commas, that we need to parse and return as an array of unsigned integers. For example, after processing the input:
 
 ```
 "123,456,789"
@@ -119,7 +119,7 @@ For our SIMD solution we are going to need a CPU that supports [AVX2](https://en
 
 The core idea behind the SIMD approach is to read the input substring by substring, loading each of them into a vector, to shuffle the vector so that the numbers go one after another, omitting the commas, and to parse the numbers altogether.
 
-We start by determining the size of the vector. In theory, the bigger it gets, the more data we can process at a time, but it's not that simple in practice. Since we know that the input string can only contain numbers and commas, we will use bytes for storing characters, that is, one byte for one character. AVX2 allows us to use 256-bit (or 32-byte) registers, but there is a catch: a 256-bit register is partitioned into two 128-bit lanes. It's not a problem for most instructions, but when it comes to reordering elements within a vector representing the register's data, it's not possible to perform such an instruction cross-lane[^2]. So, it leaves us with a 128-bit (or 16-byte) vector that would hold our data.
+We start by determining the size of the vector. In theory, the bigger it gets, the more data we can process at a time, but it's not that simple in practice. Since we know that the input string can only contain digits and commas, we will use bytes for storing characters, that is, one byte for one character. AVX2 allows us to use 256-bit (or 32-byte) registers, but there is a catch: a 256-bit register is partitioned into two 128-bit lanes. It's not a problem for most instructions, but when it comes to reordering elements within a vector representing the register's data, it's not possible to perform such an instruction cross-lane[^2]. So, it leaves us with a 128-bit (or 16-byte) vector that would hold our data.
 
 Once we load a substring into the vector, we need to analyze what kind of data we have. For example, we might have something like this:
 
@@ -138,7 +138,7 @@ Each number occurrence, like `1`, `11`, or `111`, forms a span that is of intere
 - the size of the numbers, that is, how many digits each has
 - how many bytes we can process
 
-The last point is interesting. The pattern ends with two digits, so we can’t be sure that there aren't any following digits that would form a number. Thus, we can say that we only processed 14 bytes. If a pattern would end with a comma, like this one:
+The last point is interesting. The pattern ends with two digits, so we can’t be sure that there aren't any following digits that would form a number. Thus, we can say that we only processed 14 bytes. If a pattern would end with a comma, like this:
 
 ```
 1111011101101110
@@ -162,7 +162,7 @@ Or, converting the pattern back to the sequence:
 
 If the number size was less than the maximum size, we'd just padded it with zeros, so `1` becomes `0001`, `23` — `0023`, and `456` — `0456`.
 
-Knowing that we deal with four 4-digit numbers, we can choose the right SIMD method for the parsing.
+Knowing that we deal with four 4-digit numbers, we can choose the right method for parsing the numbers.
 
 There are two things left to cover: how exactly we shuffle an arbitrary pattern into a vector of equally-sized numbers, and the implementation of the parsing methods for each slot size. We will explore both in the next section.
 
@@ -219,7 +219,7 @@ public unsafe uint[] Parse(string value)
 ```
 
 There's a lot to take in, so let's tackle main points one by one:
-1. As in the optimized solution, we need to count numbers first, so that we know how many numbers we need to parse and allocate an array of proper size. Since the amount of numbers is just the amount of commas plus 1, we'll count commas as it's easier to do (we leave the implementation for the next subsection). We also need to set two counters, `processed` and `amount`. The former tracks the number of bytes processed to advance the input and load a correct substring into a vector. The latter serves for counting parsed numbers that were added to the `result` array.
+1. As in the optimized solution, we need to count numbers first, so that we know how many numbers we need to parse and allocate an array of proper size. Since the amount of numbers is just the amount of commas plus 1, we'll count commas as it's easier to do (we leave the implementation for the next subsection). We also need to initialize two counters, `processed` and `amount`. The former tracks the number of bytes processed to advance the input and load a correct substring into a vector. The latter serves for counting parsed numbers that were added to the `result` array.
 2. Next, we allocate a small array to re-use it as an output from the method that parses a vector. Since the maximum amount of numbers we can theoretically parse is only eight, there won't be any harm if we allocate it on the stack.
 3. Then we load a substring into a vector and parse it. `ParseVector` returns the number of bytes processed within the vector and the amount of numbers it placed into the `output` array.
 4. The numbers are then added to the `result` array and we advance both counters, `processed` and `amount`.
@@ -278,7 +278,7 @@ private static unsafe Vector128<byte> LoadInput(char* c)
 }
 ```
 
-In .NET, `char` is a 2-byte value that can be represented as `ushort`. The problem is, we need a `byte` representation of the substring. So we load the substring into a 256-bit vector `raw` and represent it as `bytes`. This representation provides an additional byte we don't need, for example, character `1` becomes `{0, 1}`, or `{48, 49}` in ASCII, due to the 2-byte nature of `char`. So, we shuffle the lower and upper lanes separately using the `RawMask` to put the significant byte first and get rid of `48`. Then we combine the lower parts of the lanes into a new 128-bit vector.
+In .NET, `char` is a 2-byte value that can be represented as `ushort`. The problem is, we need a `byte` representation of the substring. So we load the substring into a 256-bit vector `raw` and represent it as `bytes`. For each character, this representation provides an additional byte we don't need. For example, character `1` becomes `{0, 1}`, or `{48, 49}` in ASCII, due to the 2-byte nature of `char`. So, we shuffle the lower and upper lanes separately using the `RawMask` to put the significant byte first and get rid of `48`. Then we combine the lower parts of the lanes into a new 128-bit vector.
 
 A quick illustration for the method would be the following:
 
@@ -465,7 +465,7 @@ private static void Parse2DigitNumbers(Vector128<byte> vector, int amount, Span<
 }
 ```
 
-First things first, we subtract the zeros to get a temporary vector `t0`. Then we perform `MultiplyAddAdjacent` (or `_mm_maddubs_epi16`) that would multiply the temporary vector with `Mul10` element-wise and then add an element to its next neighbor producing a new vector `t1`:
+First things first, we subtract the zeros to get a temporary vector `t0`. Then we perform `MultiplyAddAdjacent` (or `_mm_maddubs_epi16`) that would multiply the temporary vector with `Mul10` element-wise and then add an element to its next neighbor producing a new vector `t1`. Just to illustrate that by using example values for `t0`, we'll get the following `t1`:
 
 ```
 t0    = <1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 1, 1, 1, 1, 1>
@@ -473,7 +473,7 @@ Mul10 = <10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1>
 t1    = <12, 34, 56, 78, 90, 11, 11, 11>
 ```
 
-All we need to do at the end is to obtain the numbers from `t1` one by one.
+All we need to do at the end is to obtain a correct amount of numbers from `t1` one by one.
 
 `Parse4DigitNumbers` and `Parse8DigitNumbers` look somewhat similar, so we'll skip their implementations, but you can check them out using a link to the repo at the end of the post.
 
@@ -503,7 +503,7 @@ We've gone a long way, but now it's time to see if it was worth it. Since we're 
 
 - BenchmarkDotNet=v0.13.2, OS=Windows 11 (10.0.22621.674)
 - Intel Core i7-10750H CPU 2.60GHz, 1 CPU, 12 logical and 6 physical cores
-- .NET SDK=6.0.402
+- .NET SDK=6.0.402, .NET Runtime 6.0.10
 
 ```
 |    Method |     Value |             Mean |  Allocated |
@@ -525,7 +525,7 @@ We've gone a long way, but now it's time to see if it was worth it. Since we're 
 |      Simd | 0-999,999 | 15,935,536.46 ns |  4000080 B |
 ```
 
-Looking at the benchmarks we can draw an obvious conclusion: the more digits the numbers have, the less effective the SIMD solution becomes. This comes as no surprise as we did optimize it for parsing multiple numbers at the same time. The less digits numbers have, the more of them we can pack in a vector.
+Looking at the benchmarks we can draw an obvious conclusion: the more digits the numbers have, the less effective the SIMD solution becomes. This comes as no surprise as we did optimize it for parsing multiple numbers at the same time: the less digits the numbers have, the more of them we can pack in a vector.
 
 Let's face it, in most cases we don't want to have this kind of code in our applications: it's unsafe, not portable across different CPU architectures, and not easy to maintain. Unless we need to have it due to some performance requirements. In this case, it's good to know that we have a way to squeeze more performance out of code trading it for something else, like portability and maintainability.
 
