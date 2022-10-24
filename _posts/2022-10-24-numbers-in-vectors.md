@@ -4,7 +4,7 @@ title: Numbers in Vectors
 excerpt: Analyzing and implementing a SIMD algorithm for parsing a series of integers
 ---
 
-Every now and then my friend [Alexei](https://github.com/AlexeiMatrosov) and I play a fun little game unofficially called "Can you make it faster?" We send each other a piece of code, usually something we've been working on recently, and try to figure out if it's possible to speed it up. Normally, this code solves a particular problem, works on a determined input, and has an existing solution that most likely runs in production. I [wrote](https://timiskhakov.github.io/posts/dnd-and-algorithms) about one such game a while ago. Since it's just for fun, it is allowed to use unsafe code, call external libraries written in other languages, cache things extensively, and exploit hardware-specific features — anything goes.
+Every now and then my friend [Alexei](https://github.com/AlexeiMatrosov) and I play a fun little game unofficially called "Can you make it faster?" We send each other a piece of code, usually something we've been working on recently, and try to figure out if it's possible to speed it up. Normally, this code solves a particular problem, works on a determined input, and has an existing solution that most likely runs in production already. I [wrote](https://timiskhakov.github.io/posts/dnd-and-algorithms) about one such game a while ago. Since it's just for fun, it is allowed to use unsafe code, call external libraries written in other languages, cache things extensively, and exploit hardware-specific features — anything goes.
 
 The other day, Alexei sent me a problem that looked innocent on the surface along with his solution and asked if I could make it faster. That led me quite deep into the rabbit hole of SIMD programming, but eventually I managed to find an approach that might be worth taking a look at. In this post, we are going to analyze this algorithm, implement it in C#, and see if our solution beats Alexei's. Before we dive into the weeds, though, let's properly formulate the problem.
 
@@ -94,19 +94,19 @@ First, we need to count the number of commas we have in the input string, so we 
 Now, if we benchmark both solutions on different inputs we can see the benefits of this approach:
 
 ```
-|    Method |     Value |             Mean |  Allocated |
-|---------- |---------- |-----------------:|-----------:|
-|     Naive | 123456789 |         43.10 ns |      104 B |
-| Optimized | 123456789 |         24.94 ns |       32 B |
-|           |           |                  |            |
-|     Naive |      0-99 |      1,723.85 ns |     1608 B |
-| Optimized |      0-99 |      1,216.44 ns |      424 B |
-|           |           |                  |            |
-|     Naive |   0-9,999 |    171,847.04 ns |   171424 B |
-| Optimized |   0-9,999 |    148,908.98 ns |    40024 B |
-|           |           |                  |            |
-|     Naive | 0-999,999 | 22,523,932.60 ns | 12389476 B |
-| Optimized | 0-999,999 | 21,352,869.17 ns |  4000081 B |
+|    Method |            Value |             Mean |  Allocated |
+|---------- |----------------- |-----------------:|-----------:|
+|     Naive |      "123456789" |         43.10 ns |      104 B |
+| Optimized |      "123456789" |         24.94 ns |       32 B |
+|           |                  |                  |            |
+|     Naive |     "0,1,...,99" |      1,723.85 ns |     1608 B |
+| Optimized |     "0,1,...,99" |      1,216.44 ns |      424 B |
+|           |                  |                  |            |
+|     Naive |   "0,1,...,9999" |    171,847.04 ns |   171424 B |
+| Optimized |   "0,1,...,9999" |    148,908.98 ns |    40024 B |
+|           |                  |                  |            |
+|     Naive | "0,1,...,999999" | 22,523,932.60 ns | 12389476 B |
+| Optimized | "0,1,...,999999" | 21,352,869.17 ns |  4000081 B |
 ```
 
 This solution is tightly optimized, so it would be hard to beat it. However, it only parses one number at a time, but what if we could parse several numbers at once? You guessed it right, I'm talking about using SIMD — single instruction, multiple data — processing.
@@ -229,7 +229,7 @@ Now let's have a look at the methods we used throughout `Parse`. We'll explore `
 
 ### Counting Commas
 
-Similarly to the optimized solution, in the SIMD approach, we also do two passes through the string: the first is to count an amount of numbers — or an amount of commas as they're connected — and the second is to parse them. While we are employing SIMD for the actual processing, why not speed up the counting of commas as well?
+Similarly to the optimized solution, in the SIMD approach, we also do two passes through the string: the first is to count an amount of numbers — or an amount of commas as they're connected — and the second is to parse them. While we are employing SIMD for the actual processing, why not speed up the counting as well?
 
 ```csharp
 private static readonly Vector128<byte> Commas = Vector128.Create((byte)',');
@@ -506,23 +506,23 @@ We've gone a long way, but now it's time to see if it was worth it. Since we're 
 - .NET SDK=6.0.402, .NET Runtime 6.0.10
 
 ```
-|    Method |     Value |             Mean |  Allocated |
-|---------- |---------- |-----------------:|-----------:|
-|     Naive | 123456789 |         43.91 ns |      104 B |
-| Optimized | 123456789 |         23.48 ns |       32 B |
-|      Simd | 123456789 |         30.52 ns |       32 B |
-|           |           |                  |            |
-|     Naive |      0-99 |      1,625.96 ns |     1608 B |
-| Optimized |      0-99 |      1,177.62 ns |      424 B |
-|      Simd |      0-99 |        616.87 ns |      424 B |
-|           |           |                  |            |
-|     Naive |   0-9,999 |    169,395.66 ns |   171424 B |
-| Optimized |   0-9,999 |    147,788.80 ns |    40024 B |
-|      Simd |   0-9,999 |     95,413.96 ns |    40024 B |
-|           |           |                  |            |
-|     Naive | 0-999,999 | 22,554,080.83 ns | 12389475 B |
-| Optimized | 0-999,999 | 20,605,416.04 ns |  4000080 B |
-|      Simd | 0-999,999 | 15,935,536.46 ns |  4000080 B |
+|    Method |            Value |             Mean |  Allocated |
+|---------- |----------------- |-----------------:|-----------:|
+|     Naive |      "123456789" |         43.91 ns |      104 B |
+| Optimized |      "123456789" |         23.48 ns |       32 B |
+|      Simd |      "123456789" |         30.52 ns |       32 B |
+|           |                  |                  |            |
+|     Naive |     "0,1,...,99" |      1,625.96 ns |     1608 B |
+| Optimized |     "0,1,...,99" |      1,177.62 ns |      424 B |
+|      Simd |     "0,1,...,99" |        616.87 ns |      424 B |
+|           |                  |                  |            |
+|     Naive |   "0,1,...,9999" |    169,395.66 ns |   171424 B |
+| Optimized |   "0,1,...,9999" |    147,788.80 ns |    40024 B |
+|      Simd |   "0,1,...,9999" |     95,413.96 ns |    40024 B |
+|           |                  |                  |            |
+|     Naive | "0,1,...,999999" | 22,554,080.83 ns | 12389475 B |
+| Optimized | "0,1,...,999999" | 20,605,416.04 ns |  4000080 B |
+|      Simd | "0,1,...,999999" | 15,935,536.46 ns |  4000080 B |
 ```
 
 Looking at the benchmarks we can draw an obvious conclusion: the more digits the numbers have, the less effective the SIMD solution becomes. This comes as no surprise as we did optimize it for parsing multiple numbers at the same time: the less digits the numbers have, the more of them we can pack in a vector.
