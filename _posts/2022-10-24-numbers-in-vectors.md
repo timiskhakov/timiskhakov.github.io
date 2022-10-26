@@ -10,13 +10,13 @@ The other day, Alexei sent me a problem that looked innocent on the surface alon
 
 ## Problem
 
-Let's say we have a string containing non-negative integers separated by commas, that we need to parse and return as an array of unsigned integers. For example, after processing the input:
+Let's say we have a string containing non-negative integers separated by commas, we need to parse it and return an array of unsigned integers. For example, after processing the input:
 
 ```
 "123,456,789"
 ```
 
-the following array is returned:
+the following array should be returned:
 
 ```
 [123, 456, 789]
