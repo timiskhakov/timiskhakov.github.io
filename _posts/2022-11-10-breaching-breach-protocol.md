@@ -10,7 +10,7 @@ As someone who grew up watching _The Matrix_, _Johnny Mnemonic_, _RoboCop_ and r
 ![Breach Protocol Screenshot](/assets/images/breach-protocol-screenshot.png)
 {: refdef}
 
-The rules of the game are simple. On the left side, there’s a code matrix containing elements `1C`, `55`, `7A`, `BD`, `E9`, and `FF`. On the right side, we have a list of sequences, each consisting of elements from the same set. All we need to do is to pick elements from the matrix one by one and place them into the buffer in the correct order to compose one or more sequences shown on the right side. As soon as we have a complete sequence in the buffer, it's considered uploaded. We start with the first row of the matrix, but each time we find a matching element, the game alters the row/column direction. Every uploaded sequence gives us a reward assigned to it.
+The rules of the game are simple. On the left side, there's a code matrix containing elements `1C`, `55`, `7A`, `BD`, `E9`, and `FF`. On the right side, we have a list of sequences, each consisting of elements from the same set. All we need to do is to pick elements from the matrix one by one and place them into the buffer in the correct order to compose one or more sequences shown on the right side. As soon as we have a completed sequence in the buffer, it's considered uploaded. We start with the first row of the matrix, but each time we find a matching element, the game alters the row/column direction. Every uploaded sequence gives us a reward assigned to it.
 
 On the screenshot, we have two sequences containing 4 and 3 elements, respectively, and a buffer size of 6. Say, we want to upload the first sequence. There is more than one way to do this, but as an example, we can pick the elements like that:
 
@@ -18,7 +18,7 @@ On the screenshot, we have two sequences containing 4 and 3 elements, respective
 ![Breach Protocol Solved 1](/assets/images/breach-protocol-solved-1.png)
 {: refdef}
 
-We could concatenate two sequences together and upload a combined sequence containing 7 elements, had we had enough buffer space. However, since the last element of the first sequence equals the first element of the second sequence, we can actually chain them together into one that would still fit into the buffer: `BD BD FF 55 1C E9`. Now, we can pick all its elements from the matrix:
+We could concatenate two sequences together and upload a combined sequence containing 7 elements, had we had enough buffer space. However, since the last element of the second sequence matches the first element of the first sequence, we can actually chain them together into one that would still fit into the buffer: `BD BD FF 55 1C E9`. Now, we can pick all its elements from the matrix:
 
 {:refdef: style="text-align: center;"}
 ![Breach Protocol Solved 2](/assets/images/breach-protocol-solved-2.png)
@@ -26,42 +26,42 @@ We could concatenate two sequences together and upload a combined sequence conta
 
 Hooray, we just uploaded both sequences and got two rewards. Sweet!
 
-This mini-game is definitely not rocket science, but naturally a curious mind starts to wonder if it’s possible to write a program that would solve Breach Protocol automatically based on the matrix, list of sequences, and buffer size. Surely enough, it’s possible, and such solvers exist in abundance. Just to name the two popular ones: [Cyberpunk 2077 Hacking Minigame Solver](https://cyberpunk-hacker.com/) by [Joona Heikkilä](https://github.com/cxcorp) or [Optical Breacher](https://govizlora.github.io/optical-breacher/) by [govizlora](https://github.com/govizlora). The latter is even capable of doing image recognition to read the input data automatically.
+This mini-game is definitely not rocket science, but naturally a curious mind starts to wonder if its possible to write a program that would solve Breach Protocol automatically based on the matrix, list of sequences, and buffer size. Surely enough, it's possible, and such solvers exist in abundance. Just to name the two popular ones: [Cyberpunk 2077 Hacking Minigame Solver](https://cyberpunk-hacker.com/) by [Joona Heikkilä](https://github.com/cxcorp) or [Optical Breacher](https://govizlora.github.io/optical-breacher/) by [govizlora](https://github.com/govizlora). The latter is even capable of doing image recognition to read the input data automatically.
 
-Most of the solvers I had a look at, however, use brute-force of some sorts to crack the puzzle. If you’ve been wondering if it’s possible to use another approach, let’s grab an algorithm cookbook, open our favorite text editor, and ~~dive in~~ jack in.
+Most of the solvers — at least the ones I had a look at — use brute-force of some sorts to crack the puzzle. If you're like me, wondering if it's possible to use another approach, let's grab an algorithm cookbook, open our favorite text editor, and ~~dive in~~ jack in.
 
 ## Analysis
 
-If we squint hard enough, we'll see that there’re actually two problems behind solving Breach Protocol.
+If we squint hard enough, we'll see that there're actually two problems behind solving Breach Protocol.
 
-First, we need to decide what sequence or chained combination of sequences we want to upload to the buffer. Unlike our example above, it’s not always possible to chain all sequences together and place them into the buffer. The buffer might not have enough space, a longer sequence might not exist in the code matrix, or, for some reason, the player might not want to upload certain sequences. As each sequence has a certain reward, we can’t decide for the player what reward they want to get, so we will delegate the decision to them.
+First, we need to decide what sequence or chained combination of sequences we want to upload to the buffer. Unlike our example above, it's not always possible to chain all sequences together and place them into the buffer. The buffer might not have enough space, a longer sequence might not exist in the code matrix, or, for some reason, the player might not want to upload certain sequences. As each sequence has a certain reward, we can't decide for the player what reward they want to get, so we will delegate the decision to them.
 
-Now that the player is responsible for managing sequences and their combinations, we can concentrate on the second problem: finding the sequence in the matrix.
+Now that the player is responsible for managing sequences and their combinations, we can concentrate on the second problem: finding the desired sequence in the matrix.
 
 Despite the problem's solution appearing as a matrix traversal, we can actually represent it as traversing a tree. Which will come in handy as we could apply a version of [depth-first search](https://en.wikipedia.org/wiki/Depth-first_search) (or DFS for short) slightly modified for the game's rules. Let's break it down step by step:
 
-1. First thing we need is to find the root of the tree — the first element of the sequence. Since it’s not guaranteed that the first row we start with contains it, we have to scan the whole matrix.
+1. First thing we need is to find the root of the tree — the first element of the sequence. Since it's not guaranteed that the first row we start with contains it, we have to scan the whole matrix.
 2. Once found, we recursively run DFS on the element:
   - we push the element onto the stack
-  - then we compare the stack’s length against the sequence’s length — that’s our termination condition — if they’re equal, we exit DFS
-  - otherwise, we scan the row/column looking for the next sequence element (we can think of the row/column elements as root’s children)
+  - then we compare the stack's length against the sequence's length — that's our termination condition — if they're equal, we exit DFS
+  - otherwise, we scan the row/column looking for the next sequence element (we can think of the row/column elements as root's children)
   - if we have a match, we run DFS on the element, altering the direction
 3. Once we exit DFS, we see if the algorithm gave us a desired result stored in the stack. If the root was not found in the first row, we would need to add another element from the first row — the game rules dictate that the solution has to start with the first row's element regardless.
 4. If DFS doesn't give us the result, we continue scanning the matrix, looking for another root.
 
-Let’s see how the algorithm works by running it on our example from above. The sequence we want to upload is `BD BD FF 55 1C E9`, so we have to scan the matrix for the first occurrence of `BD`, push it onto the stack, and make it a root of the tree:
+Let's see how the algorithm works by running it on our example from above. The sequence we want to upload is `BD BD FF 55 1C E9`, so we have to scan the matrix for the first occurrence of `BD`, push it onto the stack, and make it a root of the tree:
 
 {:refdef: style="text-align: center;"}
 ![Breach Protocol Schema 1](/assets/images/breach-protocol-schema-1.png)
 {: refdef}
 
-Then we alter the direction, scan the column representing its elements as root's children, and look for the second element in the sequence, `BD`. Once found, we push it onto the stack:
+Then we alter the direction, scan the column representing its elements as root's children (excluding the root element, of course), and look for the second element in the sequence, `BD`. Once found, we push it onto the stack:
 
 {:refdef: style="text-align: center;"}
 ![Breach Protocol Schema 2](/assets/images/breach-protocol-schema-2.png)
 {: refdef}
 
-Next, we repeat the process until we find all the elements. If we are unlucky, though, we reach a situation in which a row/column doesn’t contain a matching element. See the example on the picture below: we are now searching for `1C`, but the row, containing a previously found `55`, doesn’t have it:
+Next, we repeat the process until we find all the elements. If we are unlucky, though, we reach a situation in which a row/column doesn't contain a matching element. See the example on the picture below: we are now searching for `1C`, but the row, containing a previously found `55`, doesn't have it:
 
 {:refdef: style="text-align: center;"}
 ![Breach Protocol Schema 3](/assets/images/breach-protocol-schema-3.png)
@@ -77,7 +77,7 @@ Eventually, if the sequence does exist in the matrix, we will have all its eleme
 
 ## Implementation
 
-You have probably noticed that values of the matrix and sequence are just bytes written in hex, so `1C` is 28, `55` — 85, `7A` — 122, `BD` — 189, `E9` — 233, and `FF` is 255. Since we are going to implement the algorithm in Go, we can encode them as `byte`s. The sequence, then, becomes a byte slice `[]byte` and the  matrix — a slice of byte slices `[][]byte`.
+You have probably noticed that values of the matrix and sequence are just bytes written in hex, so `1C` is 28, `55` — 85, `7A` — 122, `BD` — 189, `E9` — 233, and `FF` is 255. Since we are going to implement the algorithm in Go, we can encode them as `byte`s. The sequence, then, becomes a byte slice `[]byte`, and the matrix — a slice of byte slices `[][]byte`.
 
 The result of the algorithms is a list of sequence elements' indexes. We can encode an index using the following struct:
 
@@ -89,7 +89,7 @@ type Point struct {
 
 Which gives us the algorithm's return type `[]Point`.
 
-Last but not least, Go doesn’t have a built-in stack implementation, so we have to write a poor man’s stack ourselves.
+Last but not least, Go doesn't have a built-in stack implementation, so we have to write a poor man's stack ourselves.
 
 ### Stack
 
@@ -101,7 +101,7 @@ type stack struct {
 }
 ```
 
-Since we won’t use this stack outside the package, we make it private. Which also allows us to take some liberty in designing an API we want. Speaking of which, let's introduce methods to manipulate data on the stack, `push` and `pop`:
+Since we won't use this stack outside the package, we make it private. Which also allows us to take some liberty in designing an API we want. Speaking of which, let's introduce methods to manipulate data on the stack, `push` and `pop`:
 
 ```go
 func (s *stack) push(p Point) {
@@ -117,7 +117,7 @@ func (s *stack) pop() {
 }
 ```
 
-I guess both don’t require any explanation. Just one little detail: when using `pop` in the algorithm, we don’t actually need a popped value, so it returns nothing. That also makes our life easier in case of an empty stack — we’re just returning from the method, doing nothing.
+I guess both don't require any explanation. Just one little detail: when using `pop` in the algorithm, we don't actually need a popped value, so it returns nothing. That also makes our life easier in case of an empty stack — we just return from the method, doing nothing.
 
 Let's also add a couple of additional methods:
 
