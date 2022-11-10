@@ -1,7 +1,7 @@
 ---
 layout: post
 title: Breaching Breach Protocol
-excerpt: Yet another Breach Protocol solver for CyberPunk 2077
+excerpt: A take on solving Breach Protocol for Cyberpunk 2077
 ---
 
 As someone who grew up watching _The Matrix_, _Johnny Mnemonic_, _RoboCop_ and reading books by William Gibson and Bruce Sterling, it's no wonder I loved Cyberpunk 2077, a 2020 action-adventure game by CD Project Red. In addition to the engaging story, gorgeous soundtrack, and its many other merits, Cyberpunk 2077 has an interesting mini-game nicely incorporated into the game world — Breach Protocol. Each time a player needs to perform a device hack using Breach Protocol, the mini-game interface opens up:
