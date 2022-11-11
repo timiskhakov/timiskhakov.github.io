@@ -205,7 +205,7 @@ Summing arrays is surely fun, but let me pick a (more or less) real problem and 
 
 This time round we will solve the convex hull problem from the computational geometry field. What we need to do is to compute the convex hull based on a set of points in a two-dimensional space. That is, given points on the left we should draw a polygon on the right:
 
-![Convex Hull](/images/convex-hull.png)
+![Convex Hull](/assets/images/convex-hull.png)
 
 ## Quickhull
 
@@ -219,7 +219,7 @@ Quickhull is fairly simple:
 4. Repeat step 3 recursively for line AC and line BC until no points are left.
 5. Points A, B, C, and others that we found during step 4 are the ones that form the convex hull.
 
-![Quickhull](/images/quickhull.png)
+![Quickhull](/assets/images/quickhull.png)
 
 Before we continue further, I think I should make a short disclaimer. Quickhull is not the most efficient algorithm for computing the convex hull. Similarly to Quicksort it works as `O(nLog(n))` on average and `O(nˆ2)` in a worst-case scenario. There are a couple of other algorithms that outperform Quickhull — for example, [Graham's Scan](https://en.wikipedia.org/wiki/Graham_scan) or [Chan's algorithm](https://en.wikipedia.org/wiki/Chan%27s_algorithm).
 
