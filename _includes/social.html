@@ -1,4 +1,21 @@
 <ul class="social-media-list">
-  {%- if site.github_username -%}<li><a href="https://github.com/{{ site.github_username | cgi_escape | escape }}"><svg class="svg-icon grey"><use xlink:href="{{ '/assets/minima-social-icons.svg#github' | relative_url }}"></use></svg>GitHub</a></li>{%- endif -%}
-  {%- if site.linkedin_username -%}<li><a href="https://www.linkedin.com/in/{{ site.linkedin_username | cgi_escape | escape }}"><svg class="svg-icon grey"><use xlink:href="{{ '/assets/minima-social-icons.svg#linkedin' | relative_url }}"></use></svg>LinkedIn</a></li>{%- endif -%}
+  <li>
+    <a href="/feed.xml">
+      <svg class="svg-icon grey"><use xlink:href="{{ '/assets/minima-social-icons.svg#rss' | relative_url }}"></use></svg>RSS
+    </a>
+  </li>
+  {%- if site.github_username -%}
+  <li>
+    <a href="https://github.com/{{ site.github_username | cgi_escape | escape }}">
+      <svg class="svg-icon grey"><use xlink:href="{{ '/assets/minima-social-icons.svg#github' | relative_url }}"></use></svg>GitHub
+    </a>
+  </li>
+  {%- endif -%}
+  {%- if site.linkedin_username -%}
+  <li>
+    <a href="https://www.linkedin.com/in/{{ site.linkedin_username | cgi_escape | escape }}">
+      <svg class="svg-icon grey"><use xlink:href="{{ '/assets/minima-social-icons.svg#linkedin' | relative_url }}"></use></svg>LinkedIn
+    </a>
+  </li>
+  {%- endif -%}
 </ul>

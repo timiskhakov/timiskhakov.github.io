@@ -2,13 +2,14 @@
 layout: post
 title: Exploring Spans and Pipelines
 excerpt: Improving the performance of file parsing by using new goodies in .NET Core
+tags: [c#, io, performance]
 ---
 
 The other day I was working on a client project when I stumbled upon a ticket that required me to move some functionality from an old legacy system to our .NET Core backend. The functionality itself was fetching a text file from the network, parsing it into application data structures, and saving them to the database. Sounds quite easy, doesn't it? So, I wrote some code that solved the problem and moved on...
 
 ...until later I started to dig into `Span<T>` and `Pipelines` and thought: heck, that text file parsing task is a good real life problem to try all these shiny new toys on!
 
-## Problem
+# Problem
 
 Let's make up a similar problem with a completely arbitrary domain. Say, we have an application that works with... I dunno, video games (I'm a bit into this topic, so, the domain is not really arbitrary). Imagine we have a model that describes a video game as:
 
@@ -50,7 +51,7 @@ Let’s say there are 500 000 lines in this file in total, the maximum length of
 
 (I created a file containing fake data with a simple data generator. If you are going to check out the source code, don't be surprised by the test data.)
 
-## First Approach
+# First Approach
 
 The problem is simple, right? First, let's try to write a naïve line parser:
 
@@ -124,7 +125,7 @@ public class FileParser : IFileParser
 
 Nice and clean! The code indeed solves the problem.
 
-## Introducing Spans<T>
+# Introducing Spans<T>
 
 Can we make the code above better? Well, it depends on what "better" means. Though, there is at least one thing that could possibly be improved. We do a lot of memory allocation as we work with strings. In order to reduce them let's introduce [`Span<T>`](https://docs.microsoft.com/en-us/dotnet/api/system.span-1), a new type that's allocated on the stack, and use it to write a new implementation of `ILineParser`:
 
@@ -207,7 +208,7 @@ Well, the result is indeed positive, but to be honest, it is not that exciting, 
 
 Well, that's something, if we are talking about memory consumption.
 
-## Introducing Pipelines
+# Introducing Pipelines
 
 There is still a problem with our code. Can you guess what it is? If you said that `LineParserSpans` still works with strings, you are absolutely right. Wouldn't it be faster to use `Parse(ReadOnlySpan<char> span)` from `LineParserSpans` and skip the string part? Indeed it would. Although, that requires us to break the existing contract and somehow extract a line from the file as `ReadOnlySpan<char>`.
 
@@ -314,13 +315,13 @@ Ok, it's time for final benchmarking:
 
 Pretty good, huh?
 
-## Conclusion
+# Conclusion
 
 As they always say in performance related posts: please, don't rush to rewrite all your code in production using new cool libraries. Performance is a feature, not something that's given. Sometimes the current solution is good enough. But if speed or memory efficiency are something you need in your applications, you might want to have a look at `Span<T>` and `Pipelines`.
 
 You can check out this code and do your own benchmarks based on it: [ExploringSpansAndPipelines](https://github.com/timiskhakov/ExploringSpansAndPipelines/).
 
-## Further Reading
+# Further Reading
 
 - [Exploring Spans and Pipelines Revisited](exploring-spans-and-pipelines-revisited)
 - [Memory and Span usage guidelines](https://docs.microsoft.com/en-us/dotnet/standard/memory-and-spans/memory-t-usage-guidelines/)

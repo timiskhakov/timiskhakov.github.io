@@ -2,6 +2,7 @@
 layout: post
 title: D&D and Algorithms
 excerpt: Rolling the dice using brute-force and binomial coefficients
+tags: [go, algorithms, math]
 ---
 
 A while ago, a friend of mine had asked me to help with a math problem for a video game that employed D&D-like mechanics. As someone who sunk countless hours into Baldur's Gate and Neverwinter Nights in his teens, I immediately was hooked by the mere mention of D&D. And, of course, I wanted to help my friend solve the issue.
@@ -12,14 +13,14 @@ For sums like 3 or 18, the answer is obvious. For 4 or 17, it's perhaps less obv
 
 The problem appeared interesting. And what do programmers usually do with a problem they find interesting? Yes, they generalize it.
 
-## Problem
+# Problem
 
 Let's expand this problem by stating that we have a die with the `s` number of sides. We roll it `n` times and we are counting sums equal to `m`. Since we will be solving this problem on an x64 machine that has finite space for storing integer numbers, we would easily overflow calculations if we roll a multi-sided die numerous times. So let's also put the following constraints on our inputs:
 - 4 <= `s` <= 10
 - 1 <= `n` <= 10
 - `n` <= `m` <= `s * n`
 
-## Naive Brute-Force
+# Naive Brute-Force
 
 A solution to the problem might seem simple: all we need to do is to create a state of all possible roll results and check if its sum is equal to `m`. For our initial case with a 6-sided die, 3 rolls, and a sum of 10 it would be:
 ```
@@ -82,7 +83,7 @@ The `Naive` method creates and initializes a set of possible die values, `values
 
 This is probably not the best brute-force implementation, but we won't go further with it. Even if we start optimizing it somehow, the underlying logic is so slow that it's unlikely we'll gain significant performance.
 
-## Smart Brute-Force
+# Smart Brute-Force
 
 I shared the problem with my friend [Alexei](https://github.com/alexeimatrosov), who is not only a smart guy but also has a grip on efficient algorithms. He came up with a smarter version of the brute-forcing approach:
 
@@ -134,7 +135,7 @@ BenchmarkSmart               72    15923781 ns/op
 
 Wow, leagues ahead of the naive brute-force.
 
-## Binomial Coefficients
+# Binomial Coefficients
 
 In both implementations, we iterate over all possible roll combinations which is not very efficient. Wouldn't it be nice to have a deterministic formula for calculating probability without enumerating all possible die combinations? Turns out, such a formula exists, but we have to work out the math in order to see where it's coming from.
 
@@ -221,7 +222,7 @@ $$ f(x, 10) = (-1) \dfrac{3!}{0!(3 - 0)!} (-1) \dfrac{9!}{7!(9 - 7)!} + \dfrac{3
 
 By rolling a 6-sides die 3 times, we can obtain a sum of 10 in 27 ways.
 
-## Binomial Implementation
+# Binomial Implementation
 
 Enough math, now it's finally time to jump into a code editor. We start with the main `Binomial` method:
 
@@ -280,13 +281,13 @@ And we indeed did.
 
 You can check out the code from this post on GitHub: [dnd](http://github.com/timiskhakov/dnd).
 
-## Further Reading
+# Further Reading
 
 - [The dice roll with a given sum problem](https://www.lucamoroni.it/the-dice-roll-sum-problem)
 - [Binomial Distribution](https://onlinestatbook.com/2/probability/binomial.html)
 - [Binomial distributions, Probabilities of probabilities, part 1](https://www.youtube.com/watch?v=8idr1WZ1A7Q)
 
-## Footnotes
+# Footnotes
 
 [^1]: I've been writing a lot of Go code lately, so I'll stick with Go in this post. Although, it shouldn't be hard to port the code to other languages.
 

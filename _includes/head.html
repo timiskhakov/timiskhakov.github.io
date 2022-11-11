@@ -10,5 +10,9 @@
   {%- feed_meta -%}
 
   {%- include analytics.html -%}
+
+  {% if site.tags != "" %}
+    {% include tags.html %}
+  {% endif %}
   
 </head>

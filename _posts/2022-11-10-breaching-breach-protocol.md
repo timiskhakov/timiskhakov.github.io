@@ -2,6 +2,7 @@
 layout: post
 title: Breaching Breach Protocol
 excerpt: A take on solving Breach Protocol for Cyberpunk 2077
+tags: [go, algorithms, fun]
 ---
 
 As someone who grew up watching _The Matrix_, _Johnny Mnemonic_, _RoboCop_ and reading books by William Gibson and Bruce Sterling, it's no wonder I loved Cyberpunk 2077, a 2020 action-adventure game by CD Project Red. In addition to the engaging story, gorgeous soundtrack, and its many other merits, Cyberpunk 2077 has an interesting mini-game nicely incorporated into the game world — Breach Protocol. Each time a player needs to perform a device hack using Breach Protocol, the mini-game interface opens up:
@@ -30,7 +31,7 @@ This mini-game is definitely not rocket science, but naturally a curious mind st
 
 Most of the solvers — at least the ones I had a look at — use brute-force of some sorts to crack the puzzle. If you're like me, wondering if it's possible to use another approach, let's grab an algorithm cookbook, open our favorite text editor, and ~~dive in~~ jack in.
 
-## Analysis
+# Analysis
 
 If we squint hard enough, we'll see that there're actually two problems behind solving Breach Protocol.
 
@@ -75,7 +76,7 @@ Eventually, if the sequence does exist in the matrix, we will have all its eleme
 ![Breach Protocol Schema 4](/assets/images/breach-protocol-schema-4.png)
 {: refdef}
 
-## Implementation
+# Implementation
 
 You have probably noticed that values of the matrix and sequence are just bytes written in hex, so `1C` is 28, `55` — 85, `7A` — 122, `BD` — 189, `E9` — 233, and `FF` is 255. Since we are going to implement the algorithm in Go, we can encode them as `byte`s. The sequence, then, becomes a byte slice `[]byte`, and the matrix — a slice of byte slices `[][]byte`.
 
@@ -91,7 +92,7 @@ Which gives us the algorithm's return type `[]Point`.
 
 Last but not least, Go doesn't have a built-in stack implementation, so we have to write a poor man's stack ourselves.
 
-### Stack
+## Stack
 
 The only thing our stack actually needs is a backing slice to store points:
 
@@ -143,7 +144,7 @@ func (s *stack) slice() []Point {
 
 All three are really obvious: `len` just returns the length of the backing slice, `exists` checks if a point exists in the storage, and `slice` returns the content of the backing slice. If you smell a leaky abstraction in the last method and are about to call the OOP police, you're absolutely right: we expose an underlying structure without any protection whatsoever, allowing the caller to manipulate its data directly. If we were to write a public API, we'd of course make a new slice, copy all the points, and return it to the caller. However, we're writing a private implementation that's going to be used in our package only, so it's a safe space, we are all friends here. Let's leave it like that, but maybe don't try it at home.
 
-### Solver
+## Solver
 
 Now that we have the stack, we can introduce the `Solve` function that accepts the matrix and the sequence we defined above:
 

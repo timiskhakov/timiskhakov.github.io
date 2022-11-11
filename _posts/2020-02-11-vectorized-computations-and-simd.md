@@ -2,17 +2,18 @@
 layout: post
 title: Vectorized Computations and SIMD
 excerpt: Exploring SIMD-enabled types in .NET
+tags: [c#, simd]
 ---
 
 Recently I've been searching for ways to improve the performance of my never-to-be-released roguelike game. I make it in my spare time purely for the sake of programming and my own entertainment, so I often diverge into performance-related bikeshedding. This time I stumbled upon vectorized computations and SIMD to speed up some array-based algorithms in the game.
 
 Before diving into the topic let's try to come up with the simplest problem we could apply this solution to.
 
-## Problem
+# Problem
 
 For the sake of demo I try to keep things as simple as possible. Imagine we want to sum a bunch of numbers. That's what we do every day, right? Ok, maybe not, but it's a good example to demonstrate optimizations that vectors can provide, you might be surprised in the end. Besides, making fast things even faster is always fun, isn’t it?
 
-## Naïve Solution
+# Naïve Solution
 
 How would we approach the problem? Perhaps you already wrote some code in your mind. Chances are it looks quite similar to this:
 
@@ -33,7 +34,7 @@ public static int NaiveSum(int[] array)
 
 Writing production-ready code, we usually stop here as this solution is just good enough in nearly all cases. However, sometimes we really need to gain some speed preferably without plunging into a swirl of unmanaged code. Let me introduce vectorized computations.
 
-## Vectorization
+# Vectorization
 
 Vectorization, in general, is a term for applying operations to a set of elements rather than to a single scalar element. That is, instead of doing:
 
@@ -98,7 +99,7 @@ vmovdqu ymmword ptr [...], ymm0 ; copy the vector to the array
 
 So, we just replaced a loop that repeats a bunch of instructions 8 times with just a few instructions. Hence, the name "single instruction, multiple data" and also that's why sometimes people call vectorized computations "parallelization on a single processor".
 
-## Vector Solution
+# Vector Solution
 
 Coming back to our problem with the knowledge we obtained, let's write a new method that uses vectors:
 
@@ -156,13 +157,13 @@ The spec I ran this benchmark under:
 
 Bear in mind, though, we compare methods, one of which is CPU-dependent, so your result might be very different.
 
-## Conclusion
+# Conclusion
 
 We might use a really simple problem as an example to explore vectorized computation, but even in this case, the final result is quite surprising. Of course, not all algorithms can use vectorization to speed things up. But even if you use the one that can, please always measure your performance before doing any tweaks.
 
 You can check out code from this post on GitHub: [VectorizedComputationsAndSimd](https://github.com/timiskhakov/VectorizedComputationsAndSimd).
 
-## Further Reading
+# Further Reading
 
 - [Parallelism on a Single Core - SIMD with C#](https://instil.co/2016/03/21/parallelism-on-a-single-core-simd-with-c/)
 - [SIMD in Depth - Performance and Cost in C# and C++](https://instil.co/2016/04/07/simd-performance-with-csharp-and-cpp/)

@@ -2,13 +2,14 @@
 layout: post
 title: Numbers in Vectors
 excerpt: Analyzing and implementing a SIMD algorithm for parsing a series of integers
+tags: [c#, simd, algorithms]
 ---
 
 Every now and then my friend [Alexei](https://github.com/AlexeiMatrosov) and I play a fun little game unofficially called "Can you make it faster?" We send each other a piece of code, usually something we've been working on recently, and try to figure out if it's possible to speed it up. Normally, this code solves a particular problem, works on a determined input, and has an existing solution that most likely runs in production already. I [wrote](https://timiskhakov.github.io/posts/dnd-and-algorithms) about one such game a while ago. Since it's just for fun, it is allowed to use unsafe code, call external libraries written in other languages, cache things extensively, and exploit hardware-specific features — anything goes.
 
 The other day, Alexei sent me a problem that looked innocent on the surface along with his solution and asked if I could make it faster. That led me quite deep into the rabbit hole of SIMD programming, but eventually I managed to find an approach that might be worth taking a look at. In this post, we are going to analyze this algorithm, implement it in C#, and see if our solution beats Alexei's. Before we dive into the weeds, though, let's properly formulate the problem.
 
-## Problem
+# Problem
 
 Let's say we have a string containing non-negative integers separated by commas, we need to parse it and return an array of unsigned integers. For example, after processing the input:
 
@@ -29,7 +30,7 @@ The string is encoded in UTF-8. The range of possible values spans between `0` a
 
 Since we're going to implement our solutions in .NET, it's important to note that the type we return is `uint[]`, not `IEnumerable<uint>` or some other interface — that's part of the requirement.
 
-## Naive Solution
+# Naive Solution
 
 First, let's start with a naive solution that we are going to use as a baseline:
 
@@ -56,7 +57,7 @@ This implementation is probably the first that comes to mind once we get familia
 
 This is, of course, a simple and easy-to-read solution, however, it can be improved time- and memory-wise.
 
-## Optimized Solution
+# Optimized Solution
 
 In the naive solution, there is a problem with memory allocations when adding elements to the `result`. `List` uses an array internally to store elements and creates a bigger array copying all values from the current one once its capacity is reached. Also, at the very end, we need to conform to the required return type by calling `ToArray`, effectively creating another array and copying all values from the `result`.
 
@@ -111,7 +112,7 @@ Now, if we benchmark both solutions on different inputs we can see the benefits 
 
 This solution is tightly optimized, so it would be hard to beat it. However, it only parses one number at a time, but what if we could parse several numbers at once? You guessed it right, I'm talking about using SIMD — single instruction, multiple data — processing.
 
-## SIMD Solution: Analysis
+# SIMD Solution: Analysis
 
 We have [talked](https://timiskhakov.github.io/posts/haystacks-needles-and-hardware-intrinsics) about SIMD in the past, so I won’t get into details this time. Just to recap, modern x86 CPUs[^1] have various extensions that support processing multiple data with only one instruction. They provide additional registers for packed data and a set of instructions to operate on them. Most of the instructions are available for programmers through intrinsic functions that lately became available in .NET.
 
@@ -166,7 +167,7 @@ Knowing that we deal with four 4-digit numbers, we can choose the right method f
 
 There are two things left to cover: how exactly we shuffle an arbitrary pattern into a vector of equally-sized numbers, and the implementation of the parsing methods for each slot size. We will explore both in the next section.
 
-## SIMD Solution: Implementation
+# SIMD Solution: Implementation
 
 Now that we have familiarized ourselves with the theory, let's finally open an editor and implement the algorithm. It's going to be a long ride, so let's break it down into a few subsections:
 - Overview
@@ -175,7 +176,7 @@ Now that we have familiarized ourselves with the theory, let's finally open an e
 - Precalculating Data
 - Parsing Methods
 
-### Overview
+## Overview
 
 We start with the main `Parse` method:
 
@@ -227,7 +228,7 @@ There's a lot to take in, so let's tackle main points one by one:
 
 Now let's have a look at the methods we used throughout `Parse`. We'll explore `CountCommas` first.
 
-### Counting Commas
+## Counting Commas
 
 Similarly to the optimized solution, in the SIMD approach, we also do two passes through the string: the first is to count an amount of numbers — or an amount of commas as they're connected — and the second is to parse them. While we are employing SIMD for the actual processing, why not speed up the counting as well?
 
@@ -300,7 +301,7 @@ result    = <49, 44, 50, 51, 44, 52, 53, 54,
 
 The same `LoadInput` is used in `Parse` described in the previous subsection.
 
-### Parsing a Vector
+## Parsing a Vector
 
 Okay, we've reached the big boss of the solution, a method that parses the numbers. Let's explore it:
 
@@ -358,7 +359,7 @@ In order to actually do the in-vector reordering, we need to use the `Ssse3.Shuf
 
 Finally, in a big giant `switch` we select a parsing function and pass our shuffled vector to it.
 
-### Precalculating Data
+## Precalculating Data
 
 Effectively, each pattern we could get is uniquely represented by a 16-bit number. Since we know all possible patterns — `2^16` which is 65,536 — we can precalculate all the information we need in advance: the amount of numbers, their maximum size, bytes the pattern processed, and the shuffle mask. All that form a structure that we call a `Block`:
 
@@ -430,7 +431,7 @@ Since we go through all possible `ushort` values, we will also create blocks for
 
 Of course, we could exclude those, but since we precalculate the blocks, it won't matter much if we have a bit more data in the cache.
 
-### Parsing Methods
+## Parsing Methods
 
 Last but not least, we have five parsing methods that we need to go over. Let's start with the simplest one, `Parse1DigitNumbers`:
 
@@ -497,7 +498,7 @@ private static void ParseSingeNumber(Vector128<byte> vector, Span<uint> output)
 
 First, we allocate a small array on the stack. Then we count the digits as we don't know how many of them the number has. Finally, we use plain `uint.Parse` providing a span that represents the number.
 
-## Benchmarks
+# Benchmarks
 
 We've gone a long way, but now it's time to see if it was worth it. Since we're using hardware-specific code it's important to note that the benchmarks were run on the following specs:
 
@@ -533,7 +534,7 @@ There's an old saying that goes with every performance-related blog post: don't 
 
 You can check out the code from this post on GitHub: [ParsingNumbers](https://github.com/timiskhakov/ParsingNumbers).
 
-## Footnotes
+# Footnotes
 
 [^1]: Processors that use other instruction set architectures, such as ARM, also support SIMD operations, but in the context of this post, we're only interested in the x64 ISA.
 

@@ -2,6 +2,7 @@
 layout: post
 title: Computing the Convex Hull on GPU
 excerpt: With ILGPU it has never been easier to write CUDA code in .NET
+tags: [c#, gpu, algorithms]
 ---
 
 We have talked about hardware acceleration in [one of the previous posts](haystacks-needles-and-hardware-intrinsics) where we briefly touched upon the topic of CPU-specific instructions and, in particular, SIMD usage. However, the CPU is not the only piece of hardware programmers can use for computations. Modern desktop computers and some servers are often equipped with graphics cards. Their primary purpose was to render graphics, which, as a side-effect, made them excellent for the computation of complex and high-volume matrix mathematics.
@@ -16,7 +17,7 @@ GPU programming has its drawbacks. Aside from code changes mentioned above, one 
 
 In this post, I will be talking about and working with the CUDA platform, for that reason I'll use Nvidia's terminology.
 
-## CUDA Programming Model
+# CUDA Programming Model
 
 CUDA, or Compute Unified Device Architecture, is a computing platform created by Nvidia. It provides an easy way to program on CUDA-supported GPUs. Even though Nvidia explains how to write applications using the platform in [CUDA C++ Programming Guide](https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html), I'll briefly mention some essentials before we go further.
 
@@ -123,7 +124,7 @@ Finally, we wait for the GPU to finish its job, check that we get the results we
 Max error: 0
 ```
 
-## ILGPU
+# ILGPU
 
 As a developer who works with C# and .NET on an everyday basis, I was tempted to try GPU programming in a familiar environment. However, it's not that simple in the .NET land. We don't have a runtime library that could help us incorporate GPU code into C#. Not to mention that unlike C++ .NET doesn't compile C# code directly into machine code. Instead, it converts the source code to the intermediate language (IL) producing `.exe` or `.dll` files. Then the .NET runtime uses Just-In-Time (JIT) compiler to convert the IL to the machine code.
 
@@ -201,7 +202,7 @@ Doesn't look very difficult, does it?
 
 Summing arrays is surely fun, but let me pick a (more or less) real problem and throw it onto the GPU. Following this hands-on approach, we can explore more ILGPU features.
 
-## Problem
+# Problem
 
 This time round we will solve the convex hull problem from the computational geometry field. What we need to do is to compute the convex hull based on a set of points in a two-dimensional space. That is, given points on the left we should draw a polygon on the right:
 
@@ -209,7 +210,7 @@ This time round we will solve the convex hull problem from the computational geo
 ![Convex Hull](/assets/images/convex-hull.png)
 {: refdef}
 
-## Quickhull
+# Quickhull
 
 To achieve this goal we will use the Quickhull algorithm. In a way, it resembles well-known Quicksort because of its divide and conquer nature, but works on a 2D space rather than on an array.
 
@@ -229,7 +230,7 @@ Before we continue further, I think I should make a short disclaimer. Quickhull 
 
 Our goal here is to make Quickhull run faster by parallelization. First, we will implement it naively, by the book, then parallelize it on the CPU, and finally, we modify and run it on the GPU.
 
-## Naive Implementation
+# Naive Implementation
 
 To start with, we need to define a point model we are going to operate upon:
 
@@ -320,7 +321,7 @@ private static int Side(Point p1, Point p2, Point p)
 
 As you might have noticed, `Distance` method doesn't return the actual distance between the point and the line. Instead, it returns a value that's proportional to the distance. Since we only need to know which point is more distant, we can use this value further. For the lack of a better name, I'll continue to call it "distance".
 
-## CPU Parallelization
+# CPU Parallelization
 
 As you can see the algorithm iterates over the points array every time it divides a plane. It checks the side, computes distances between the points and the line, and finds the maximum distance's index over and over again. Since we don't have any data dependencies between iterations, we can parallelize these computations. We will do it by replacing the `for` loop with `Parallel.For`. So now `FindHull` looks like that:
 
@@ -376,7 +377,7 @@ Since we do more work here by computing the same distance twice in steps 4 and 5
 
 The rest of the implementation remains the same as in the naive version.
 
-## GPU Parallelization
+# GPU Parallelization
 
 Equipped with some knowledge on GPU computing and how to apply it in .NET, we can finally come closer to the title of the post — computing the convex hull on the GPU. Here we're also going to parallelize the same loop as in the CPU version. It might not look as simple as the naive or CPU-parallelized versions, but I'll try to keep things as simple as possible.
 
@@ -584,7 +585,7 @@ private static void FindMaxIndex(
 }
 ```
 
-## Benchmarking
+# Benchmarking
 
 Phew, it's been a long ride! It is interesting to compare the implementations and see which one is faster.
 
@@ -607,7 +608,7 @@ Since hardware-specific code is involved, it's also important to note the specs 
 
 Sweet! I wonder how would high-end graphics cards perform in this benchmark?
 
-## Conclusion
+# Conclusion
 
 Usually, GPU programming finds its use in scientific computing, image processing, machine learning, and such. It's probably not something that most of us, .NET developers, would use on a daily basis. However, it's good to know that if there is a need for that, we can do it without leaving our comfortable .NET world. Whatever tools we choose for the job, though, we have to remember the main rule of performance tuning: always measure it. Especially when it comes to hardware-specific code.
 
@@ -615,7 +616,7 @@ Many thanks to [MoFtZ](https://github.com/MoFtZ) for helping me a lot with index
 
 You can check out the code from this post on GitHub: [ComputingTheConvexHullOnGpu](https://github.com/timiskhakov/ComputingTheConvexHullOnGpu).
 
-## Further Reading
+# Further Reading
 
 - [CUDA C++ Programming Guide](https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html)
 - [CUDA Refresher: The CUDA Programming Model](https://developer.nvidia.com/blog/cuda-refresher-cuda-programming-model/)

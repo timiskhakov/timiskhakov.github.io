@@ -2,6 +2,7 @@
 layout: post
 title: Haystacks, Needles, and Hardware Intrinsics
 excerpt: .NET Core 3.0 allows us to dive a bit deeper into SIMD and intrinsics
+tags: [c#, simd, algorithms]
 ---
 
 In [the previous post](vectorized-computations-and-simd), we have explored SIMD-enabled types, such as vectors, provided by the `System.Numerics` namespace. They allow us to vectorize some array-based algorithms to speed up performance. However, since we were running code on .NET Core 3.1, we kinda ignored the elephant in the room — hardware intrinsics. Hardware intrinsics are special functions that are converted into CPU-specific instructions. They provide us with the same functionality as vectors from `System.Numerics` giving more flexibility and exposing additional instructions we can leverage on. Starting from .NET Core 3.0 hardware intrinsics are available under the `System.Runtime.Intrinsics` namespace.
@@ -66,11 +67,11 @@ if (Avx2.IsSupported)
 
 Let’s explore what intrinsics are capable of.
 
-## Problem
+# Problem
 
 Last time we calculated a sum of an array of integers. Let's do something different this time. Say, we have a needle string and we need to find a position of its first occurrence in the haystack string; if it's not found, we return `-1`. You guessed it right, we are about to implement our own `IndexOf()`.
 
-## Naive Solution
+# Naive Solution
 
 We will start with the [naive string search algorithm](https://en.wikipedia.org/wiki/String-searching_algorithm#Na%C3%AFve_string_search) as a baseline:
 
@@ -97,7 +98,7 @@ public static int NaiveIndexOf(string haystack, string needle)
 
 It's not very efficient, but it does its job and might be a good starting point for us.
 
-## Built-in Methods
+# Built-in Methods
 
 We already mentioned one built-in method for solving the problem, `String.IndexOf()`. We could also use `Regex` to write something like:
 
@@ -111,7 +112,7 @@ public static int RegexIndexOf(string haystack, string needle)
 
 We will do benchmarking to check which method is faster at the end of the post. In the meantime let's write our own SIMD-friendly solution.
 
-## SIMD Algorithm
+# SIMD Algorithm
 
 For the SIMD solution, we will use an algorithm described in Wojciech Muła's [SIMD-friendly algorithms for substring searching](http://0x80.pl/articles/simd-strfind.html#algorithm-1-generic-simd). It's based on the naive string search algorithm that's modified for SIMD usage.
 
@@ -150,7 +151,7 @@ What value 16 tells us is that if we were to imagine our 8 elements vector in th
 
 Finally, we obtain a zero-based position of the first bit set to `1` which is 4 in the little-endian representation, and calculate candidate's first and last indices: 4 and 7. We check our candidate: `cake`, which happens to be the needle.
 
-## SIMD Implementation
+# SIMD Implementation
 
 Following Wojciech Muła's blog post, we can find an [implementation](http://0x80.pl/articles/simd-strfind.html#sse-avx2) written in C++ that uses intrinsics. Let's port it to C#:
 
@@ -262,7 +263,7 @@ private static unsafe bool Compare(char* source, int sourceOffset, char* dest, i
 
 Essentially we just check every candidate's character against the needle one by one. One detail to note here — we don't pass the first and the last indices of the candidate to this method as we already know that they match. Instead, we are passing the second and the second to last indices.
 
-## Benchmarking
+# Benchmarking
 
 Time to compare all the implementations we gathered throughout this post. In the benchmark we will search for a needle located at the end of the 10k word haystack:
 
@@ -281,7 +282,7 @@ That's right, built-in `IndexOf` (that takes `Ordinal` as the `StringComparison`
 - Intel Core i7-8569U CPU 2.80GHz (Coffee Lake)
 - .NET Core SDK=3.1.200
 
-## Possible Improvements
+# Possible Improvements
 
 Nevertheless, if we want to improve the performance of our `IntrinsicsIndexOf` further we can take a look at the following approaches: instruction pipelining and memory alignment.
 
@@ -289,13 +290,13 @@ In the [Intel Intrinsics Guide](https://software.intel.com/sites/landingpage/Int
 
 According to Intel's [Developer Guide and Reference](https://software.intel.com/content/www/us/en/develop/documentation/cpp-compiler-developer-guide-and-reference/top/compiler-reference/intrinsics/data-alignment-memory-allocation-intrinsics-and-inline-assembly/alignment-support.html#alignment-support) aligning data should also improve the performance of intrinsics. In our code, we are not aware of memory alignment. Dealing with it, though, is not an easy job, but still doable. For example, we could search for the first aligned element and start with it processing previous elements without vectors. Applying this optimization we could use `LoadAlignedVector256` function. It gets translated to the `_mm256_load_si256` intrinsic which verifies that data is aligned.
 
-## Conclusion
+# Conclusion
 
 Indeed, the example we were going through is not very practical, but I hope it gives an overview of what hardware intrinsics are capable of. Since they are providing CPU specific functionality, we have to be aware of the hardware we run our code on. I guess you can see why the main rule of performance — always measure it — is especially important for intrinsics.
 
 You can check out the code from this post on GitHub: [HaystacksNeedlesAndHardwareIntrinsics](https://github.com/timiskhakov/HaystacksNeedlesAndHardwareIntrinsics).
 
-## Further Reading
+# Further Reading
 
 - [Hardware Intrinsics in .NET Core](https://devblogs.microsoft.com/dotnet/hardware-intrinsics-in-net-core/)
 - [Hardware intrinsic in .NET Core 3.0 - Introduction](https://fiigii.com/2019/03/03/Hardware-intrinsic-in-NET-Core-3-0-Introduction/)

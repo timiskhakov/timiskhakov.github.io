@@ -2,11 +2,12 @@
 layout: post
 title: Exploring Spans and Pipelines Revisited
 excerpt: Revisiting a previous post on spans and pipelines and improving parsing performance
+tags: [c#, io, performance]
 ---
 
 A while ago we [explored](exploring-spans-and-pipelines) the usage of `Span<T>` and `Pipelines` to speed up file parsing. However, as David Fowler has [rightly pointed out](https://github.com/timiskhakov/ExploringSpansAndPipelines/issues/1) we might have had a problem with stack allocations if we had long lines in the file. Considering the data I had to work with and trying to keep the post as simple as possible, I've come up with a workaround by putting a line length limit into the method that processes the line. Now the time has come, let's remove the workaround and replace it with a proper solution instead.
 
-## Introducing ArrayPool
+# Introducing ArrayPool
 
 I don't want to copy the whole code from the previous post, so let's take a quick look at the method that contains the limit:
 
@@ -58,7 +59,7 @@ We rent an array providing `sequence.Length` as its minimum length, then we copy
 
 As you probably noticed we don't convert bytes to chars here. Instead, we create a `Span<byte>` on top of the array and pass it down to the line parser, which in theory should save us some processing time. (To verify it we will do benchmarking at the end of the post.) Clearly, we need to refactor its `Parse` method as well.
 
-## Introducing Utf8Parser
+# Introducing Utf8Parser
 
 One detail to note before we go further: since we are going to change the signature of the line parser, we don't need to follow the contract of `ILineParser` we were sticking to previously. Frankly, I ran out of good names for the parsers (not that I had them before, though), so I named the new implementation simply `LineParserImproved`:
 
@@ -167,7 +168,7 @@ private static bool TryParseExactDateTime(in ReadOnlySpan<byte> bytes, out DateT
 }
 ```
 
-## Benchmarking
+# Benchmarking
 
 We got quite good results in the previous post. Let's benchmark the new implementation and see if it gets better or worse. We use the same benchmark in which we parse a 500k line file into the application's data models:
 

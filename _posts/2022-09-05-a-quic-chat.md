@@ -2,6 +2,7 @@
 layout: post
 title: A QUIC Chat
 excerpt: Exploring the QUIC protocol by building a chat application
+tags: [go, quic, network programming]
 ---
 
 Most of the backend applications I work on talk to other systems, like a backend (micro)service, another application, or a database. More often than not, they use an existing application protocol, such as HTTP, SMTP, or AMQP, that sits on top of TCP, a good old transport protocol. Recently, though, a new transport protocol appeared in the wild, QUIC.
@@ -12,7 +13,7 @@ It seems that QUIC is being expansively adopted on the Internet and is here to s
 
 Before we do that, though, let's take a step back and look at the big picture of the TCP/IP stack. Since the words "network programming" and "simple" don't normally go hand in hand, I'll be simplifying some concepts.
 
-## TCP/IP
+# TCP/IP
 
 From programming books or university courses, you might remember the [OSI model](https://en.wikipedia.org/wiki/OSI_model) of networking that divides communication between computers into 7 layers:
 
@@ -46,7 +47,7 @@ The picture of the stack wouldn't be complete without the TLS protocol. Despite 
 
 This is, of course, a fairly simplified picture of the TCP/IP stack, but it should give us an idea of how it works. Now, in the context of this post we are mostly interested in the transport layer, which is where QUIC operates. But before we proceed to it, let's talk about TCP, UDP, and TLS.
 
-### TCP
+## TCP
 
 When we make requests over the Internet, they normally travel through a bunch of networks connected via physical devices until they reach the destination server. With that many moving parts, failures may and do happen: packets get lost, networks are being congested, devices fail. TCP takes care of all that by ensuring that packets are delivered in the right order, retransmitting lost packets, and adapting the data transfer rate — in other words, it makes the connection reliable.
 
@@ -62,13 +63,13 @@ When transmitting data through a stream, TCP uses a sequence number attached to 
 
 Once the communication is done, a similar handshake is performed in order to close the session.
 
-### UDP
+## UDP
 
 Unlike TCP that takes care of transmission reliability, the UDP protocol does not concern itself with it at all. UDP does not have sessions, delivery confirmation, or packet retransmission. When sending data over UDP, the sender doesn't even know if the receiver is available. All UDP does is send packets to a specified destination. It is nevertheless a vital part of the stack and is widely used in certain scenarios, such as streaming or online multiplayer games.
 
 The absence of all these features, however, makes UDP useful for when packet loss is tolerable and transmission speed is priority. Using UDP doesn't mean we can't reliably transfer data, though. We simply need to move ensuring reliability to an application layer protocol. For example, [TFTP](https://en.wikipedia.org/wiki/Trivial_File_Transfer_Protocol) uses UDP as a transport protocol and implements some TCP features, such as packet acknowledgement and retransmission.
 
-### TLS
+## TLS
 
 In the early days of the Internet, data was transmitted as is without any kind of protection. Effectively, any node between the client and server could potentially read it. Lately, when passwords and credit card numbers started floating around, it became quite a concern. This is when TLS, designed to provide communication security, gained popularity and wide adoption.
 
@@ -80,7 +81,7 @@ To establish a TLS connection the client and server negotiate the common paramet
 
 First, the client requests the server to establish a TLS session providing a TLS version, ciphers for the encryption, and the client's public key. The server then replies with the cipher it's going to use, its own public key, and a certificate indicating that the server is truly what the client thinks it is. Next, the client verifies the certificate with a certificate authority. The certificate is usually issued by an authority that both client and server trust, for example [Let's Encrypt](https://letsencrypt.org). Both the client and the server have to derive a signature and message authentication code from each other's public keys in order to verify the integrity of encrypted data. Once the handshake is performed, the client can start sending encrypted data to the server.
 
-### Problems
+## Problems
 
 Both transport protocols, TCP and UDP, are really good at what they do. There are, however, a few problems with them, especially when it comes to how application protocols, HTTP in particular, use them.
 
@@ -92,7 +93,7 @@ In order to establish a single TCP and TLS session, a client should perform a nu
 
 And here's when QUIC comes to the rescue.
 
-## QUIC Protocol
+# QUIC Protocol
 
 QUIC is a transport protocol that's built on top of UDP. It implements all the smarts for making the connection reliable and incorporates TLS 1.3 to ensure data security.
 
@@ -114,7 +115,7 @@ All in all, QUIC works reliable, fast, and secure — kinda like... portals:
 
 Now, let's put our hands on the protocol and code a chat application in Go.
 
-## Building a Chat
+# Building a Chat
 
 Luckily, we don't need to implement QUIC's specification from scratch. There are many existing implementations for virtually any platform or language. In Go, QUIC has not gotten into the standard library (yet), but there's a popular implementation [quic-go](https://github.com/lucas-clemente/quic-go) written in pure Go that we can use for our needs.
 
@@ -145,7 +146,7 @@ func (m *Message) Write(w io.Writer) error {
 
 Luckily for us, quic-go's `Stream` interface embeds both `io.Reader` and `io.Writer`, so we can just delegate encoding and decoding a message to Go's `gob` package. Since QUIC provides independent streams, we can leverage it by using one stream for one message. It might not be obvious, but that actually simplifies a lot of things for us. If we were implementing this chat over TCP, we would have a problem with defining a message. As mentioned early, TCP provides one bi-directional stream of bytes, so it doesn't have a concept of messages. A common solution for this is either to use a message delimiter or to prefix each message and its fields with a length.
 
-### Server
+## Server
 
 For the server part, we also need to define a struct:
 
@@ -271,7 +272,7 @@ In this method, we just open a stream (again, not forgetting to close it at the 
 
 That's essentially the whole server. Now let's proceed to the client.
 
-### Client
+## Client
 
 Client's code is somewhat similar, but slightly simpler compared to server's code. First, we define a client struct that would incorporate a nickname and an instance of `quic.Connection`:
 
@@ -341,7 +342,7 @@ func (c *client) readStream(stream quic.Stream, messages chan<- Message, errs ch
 
 Client's `readMessage` is, again, somewhat similar to the server's method with the same name. First, it makes sure that the stream is going to be closed at the end. Then it tries to read a message from the stream. If that ended successfully, the message goes to the `messages` channel, popping in the caller's code, otherwise an error takes a similar route.
 
-### Connecting Clients to the Server
+## Connecting Clients to the Server
 
 With both the client and server implemented, let's run them and see how the chat works. I hooked the client part up into a [bubbletea](https://github.com/charmbracelet/bubbletea) app to make it look a bit nicer:
 
@@ -355,12 +356,12 @@ Thanks to Tero Nurmiluoto for carefully reviewing the post and suggesting numero
 
 You can check out the code from this post on GitHub: [quic-chat](https://github.com/timiskhakov/quic-chat).
 
-## Further Reading
+# Further Reading
 
 - [Network Programming with Go](https://nostarch.com/networkprogrammingwithgo)
 - [Asynchronous TCP/IP](https://www.youtube.com/playlist?list=PLIebvSMVr_dehKSoq6vuAW0BGEM6QnDlS)
 - [HTTP/3 explained](https://http3-explained.haxx.se/en)
 
-## Footnotes
+# Footnotes
 
 [^1]: Along with supplement RFCs: [RFC 8999 - Version-Independent Properties of QUIC](https://datatracker.ietf.org/doc/html/rfc8999), [RFC 9001 - Using TLS to Secure QUIC](https://datatracker.ietf.org/doc/html/rfc9001), and [RFC 9002 - QUIC Loss Detection and Congestion Control](https://datatracker.ietf.org/doc/html/rfc9002)

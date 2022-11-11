@@ -2,13 +2,14 @@
 layout: post
 title: Programming Guitar Music
 excerpt: From making a beep to performing a "guitar" cover
+tags: [go, audio processing, fun]
 ---
 
 In this blog, I usually write about approaches and technologies that help us build more efficient software. But this time round we're going to do something different. We'll talk about sound waves, learn how they're stored in computers, simulate a guitar string sound, and perform a cover of Johnny Cash's version of Hurt — in a geeky way. So we won't use any pre-recorded samples, sequencers, or — heaven forbid — actual guitars. Instead, we will employ a little bit of math, Go, and a few helper libraries for audio processing.
 
 But first, let's dive into the underlying theory. We won't be talking about the physics of sound waves and all the rest of it, but only glance over some concepts to establish common ground we're going to build our code upon.
 
-## Sound in Computers
+# Sound in Computers
 
 In physics, sound is a complex phenomenon that involves propagation of acoustic waves, pressure compressions and rarefactions, and many other things. When it comes to representing sound visually, it can often be depicted as a wave:
 
@@ -68,7 +69,7 @@ We will come to the method that records sound a bit later. For now, let's just p
 
 Well, that's surely something, but it doesn't sound particularly pleasant. Luckily, we have an interesting algorithm which would make the same tune sound as it was played on a guitar.
 
-## Karplus-Strong Algorithm
+# Karplus-Strong Algorithm
 
 The Karplus-Strong algorithm described in [this article](https://ccrma.stanford.edu/~jos/pasp/Karplus_Strong_Algorithm.html) allows us to synthesize a sound that closely resembles a plucked guitar string. Again, we won't go into the nitty-gritty details of how it works, but rather explore the algorithm’s components and try to implement it. Let's have a look at the diagram:
 
@@ -124,7 +125,7 @@ Sounds better, huh? What about the sixth string:
 
 We can play with the algorithm trying to find a better tune, but I suggest we move forward and explore the extended version.
 
-## Extended Karplus-Strong Algorithm
+# Extended Karplus-Strong Algorithm
 
 To implement the extended Karplus-Strong algorithm, or EKS for short, we are going to closely follow [this article](https://ccrma.stanford.edu/realsimple/faust_strings/Extended_Karplus_Strong_Algorithm.html) describing the algorithm in detail. It's a bit heavy on math, but it would give us more control over the output sound. Let's start with the diagram:
 
@@ -150,7 +151,7 @@ $$ y(n) = x(n) + x(n -1) $$
 
 Where `x` is an input array and `y` is an output array. The Z-transform has an important feature that we should take into account: for each out-of-range `n` the result of the function is `0`, that is, `x(-1) = 0`. Now, to the filters.
 
-### Noise Filters
+## Noise Filters
 
 We start with **the pick-direction lowpass filter**, which, as the name implies, is responsible for the pick direction, as "up-pick" and "down-pick" have different coefficients. The Z-transform for the filter is:
 
@@ -209,7 +210,7 @@ func pickPositionComb(noise []float64) {
 
 We just calculate the `pick` value and apply the formula. One thing to note here: if `pick` ends up being rounded to zero by the integer conversion, we would assign `pick` value to the size of `noise`, effectively turning the filter off.
 
-### Single Sample Filters
+## Single Sample Filters
 
 Following arrows on the diagram, we start exploring single sample filters with the **delay line**, which generates new samples and has probably the simplest formula:
 
@@ -274,7 +275,7 @@ func firstOrderStringTuningAllpass(samples []float64, n, N int) float64 {
 }
 ```
 
-### All Samples Filters
+## All Samples Filters
 
 Finally, the all samples filter group that only contains **the dynamic level lowpass filter**:
 
@@ -312,7 +313,7 @@ func dynamicLevelLowpass(samples []float64, w float64) {
 
 Just for convenience, we compute `w` in the caller code and pass it down to the function. Here we again create a buffer for storing filtered samples. Then we apply the first formula to the first buffer element manually (keeping in mind that the second term in the formula would give us `0` due to the negative index). Next, we apply the first formula to the rest of the buffer. Finally, we apply the second formula to all samples.
 
-### Putting It All Together
+## Putting It All Together
 
 Now, that all filters are done, we can finally implement the whole algorithm:
 
@@ -352,7 +353,7 @@ Sixth string:
 
 By changing the constants we defined along the way, we could hear how they affect the output sound.
 
-## Sound in Go
+# Sound in Go
 
 Now that we know how to produce sound, we can create a few abstractions to play and record it. But first, let's make a note — I mean, a musical note. Since the note is just a frequency value, like 329.63 Hz for note E4 (remember that's the first guitar string), we could define it as a float. However, we are going to model a guitar, so we go full guitar mode and define a note as a combination of a string and fret. That is, note E4 would be written as `{1, 0}` meaning the first string with no fret clamped. In code that would be a `struct`:
 
@@ -435,7 +436,7 @@ func (s *sound) Err() error {
 
 The `Stream` implementation is fairly simple, but we have to keep an eye on the number of samples left in the buffer and signal with `0, false` once we reach the end. As for `Err`, we do not expect any errors during streaming (I bet that would be my famous last words). Now we can use some interesting `beep` methods, passing around our `sound` struct.
 
-## Modeling a Guitar
+# Modeling a Guitar
 
 Okay, we are just one struct away from playing and recording sound. We also came closer to the post title, making guitar music. Not surprisingly, a guitar would be yet another `struct`:
 
@@ -516,7 +517,7 @@ It would be strange to assemble a guitar literally from scratch and to put it in
 
 {% include audio.html src="/assets/audio/hurt.wav" %}
 
-## Conclusion
+# Conclusion
 
 I know, I know, this "guitar" barely reaches a MIDI level, but hey, we just synthesized its sound literally out of nowhere. Besides, this rendition is performed by a soulless machine, we gotta ~~respect our future overlords~~ cut it some slack! On a more serious note, I think using generative algorithms might help find suitable constants for improving the synthesis and making it sound more real. But that's a story for another time.
 
@@ -524,13 +525,13 @@ Many thanks to Daiwery for the initial research[^2] and inspiration and to Tero 
 
 You can check out the code from this post on GitHub: [music](https://github.com/timiskhakov/music).
 
-## Further Reading
+# Further Reading
 
 - [Music and Computers](http://musicandcomputersbook.com)
 - [Creating sound from scratch with Go](https://blog.devgenius.io/creating-sound-from-scratch-with-go-9cef90b62370)
 - [Extensions of the Karplus-Strong Plucked-String Algorithm](https://www.jstor.org/stable/3680063?origin=JSTOR-pdf)
 
-## Footnotes
+# Footnotes
 
 [^1]: The arrangement is made by Guitarara: [https://www.youtube.com/channel/UCU7s5pZyhjnPmQCl2ZT6P_A](https://www.youtube.com/channel/UCU7s5pZyhjnPmQCl2ZT6P_A)
 
