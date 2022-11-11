@@ -134,7 +134,9 @@ Here we do a couple of things to split processing into vectors:
 3. Then we summarize all the elements residing in the vector result into a scalar integer result.
 4. Since our input array can have a length not divided evenly by the vector size, we have to deal with the remaining elements. We just add each element to the final result.
 
+{:refdef: style="text-align: center;"}
 ![Vector solution](/assets/images/vector-solution.jpg)
+{: refdef}
 
 Let's compare methods that we wrote so far trying to find a sum of an array of 1 million integers each having a value from 1 to 1000 (as always I use [`BenchmarkDotNet`](https://github.com/dotnet/BenchmarkDotNet)). I also included the LINQ-based method `array.Sum()` for the sake of comparison:
 

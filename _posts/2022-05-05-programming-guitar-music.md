@@ -12,21 +12,29 @@ But first, let's dive into the underlying theory. We won't be talking about the 
 
 In physics, sound is a complex phenomenon that involves propagation of acoustic waves, pressure compressions and rarefactions, and many other things. When it comes to representing sound visually, it can often be depicted as a wave:
 
+{:refdef: style="text-align: center;"}
 ![Wave](/assets/images/wave.png)
+{: refdef}
 
 The wave, in turn, can also be interpreted as a function of time that outputs values between -1 and 1. The wave has a lot of characteristics, but in the context of this post, we are only interested in two: length and frequency. The former is rather intuitive, that's just how long the wave is, measured in time units, like seconds or minutes. The latter, though, describes a repetition of the waveform. For example, the frequency of the yellow wave is twice that of the blue one:
 
+{:refdef: style="text-align: center;"}
 ![Wave twice](/assets/images/wave-twice.png)
+{: refdef}
 
 To measure a wave's frequency, we need to count the number of waveform repetitions in one second. If we only have one waveform that spans through the second, the wave's frequency would be one hertz or 1 Hz. It would be impossible to hear, though, as humans can only detect sounds in a frequency range from 20 Hz to 20 kHz.
 
 The waves in the pictures above are analog, as each is represented by a [continuous function](https://en.wikipedia.org/wiki/Continuous_function), i.e. we can obtain a function value at every moment in time. Well, it creates a problem, because as time is continuous we would have to store an infinite amount of numbers on a computer that has finite space. The answer to this conundrum is sampling: we convert our continuous wave into a series of function values measured at a specific time interval. The values we get are called samples. Depending on the time interval, the conversion might produce different numbers of samples, for example, this:
 
+{:refdef: style="text-align: center;"}
 ![Wave high](/assets/images/wave-high.png)
+{: refdef}
 
 Or this one:
 
+{:refdef: style="text-align: center;"}
 ![Wave low](/assets/images/wave-low.png)
+{: refdef}
 
 Of course, the more samples we have, the more precise the sound would be. Sampling is also measured in hertz, and it's referring to how many samples we have in one second — this measurement is called the sample rate. A common sample rate used in audio processing, that we're also going to use throughout the post, is 44,100 Hz.
 
@@ -64,7 +72,9 @@ Well, that's surely something, but it doesn't sound particularly pleasant. Lucki
 
 The Karplus-Strong algorithm described in [this article](https://ccrma.stanford.edu/~jos/pasp/Karplus_Strong_Algorithm.html) allows us to synthesize a sound that closely resembles a plucked guitar string. Again, we won't go into the nitty-gritty details of how it works, but rather explore the algorithm’s components and try to implement it. Let's have a look at the diagram:
 
+{:refdef: style="text-align: center;"}
 ![EK](/assets/images/ks.png)
+{: refdef}
 
 What happens here is the following:
 
@@ -118,11 +128,15 @@ We can play with the algorithm trying to find a better tune, but I suggest we mo
 
 To implement the extended Karplus-Strong algorithm, or EKS for short, we are going to closely follow [this article](https://ccrma.stanford.edu/realsimple/faust_strings/Extended_Karplus_Strong_Algorithm.html) describing the algorithm in detail. It's a bit heavy on math, but it would give us more control over the output sound. Let's start with the diagram:
 
+{:refdef: style="text-align: center;"}
 ![EKS](/assets/images/eks.png)
+{: refdef}
 
 The core idea is somewhat similar to the basic Karplus-Strong: we make some noise in the beginning, then we generate sound somewhere in the middle, and we get final samples. Unlike its predecessor, though, EKS's middle part goes up to eleven as we have different filter groups, each of which applies to different parts of the pipeline. We can define the groups like that:
 
+{:refdef: style="text-align: center;"}
 ![EKS groups](/assets/images/eks-groups.png)
+{: refdef}
 
 The blue one is responsible for noise generation and applying **noise filters**. The yellow group generates new samples and processes each sample individually, passing it through a set of **single sample filters**. Finally, the green one applies **all samples filters** before output. One of the main ideas of the extended algorithm is that we can mix and match different filters within each group.
 
