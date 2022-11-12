@@ -2,7 +2,7 @@
 layout: post
 title: Computing the Convex Hull on GPU
 excerpt: With ILGPU it has never been easier to write CUDA code in .NET
-tags: [c#, gpu, algorithms]
+tags: [c#, cuda, algorithms]
 ---
 
 We have talked about hardware acceleration in [one of the previous posts](haystacks-needles-and-hardware-intrinsics) where we briefly touched upon the topic of CPU-specific instructions and, in particular, SIMD usage. However, the CPU is not the only piece of hardware programmers can use for computations. Modern desktop computers and some servers are often equipped with graphics cards. Their primary purpose was to render graphics, which, as a side-effect, made them excellent for the computation of complex and high-volume matrix mathematics.
