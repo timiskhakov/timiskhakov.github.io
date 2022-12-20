@@ -549,6 +549,8 @@ private bool WalkDown(int next, int position, ref ActivePoint activePoint)
 
 ## Search
 
+Once the tree is defined, implementing a string searching algorithm on top of it will be easy:
+
 ```csharp
 public class SuffixTree
 {
@@ -580,22 +582,39 @@ public class SuffixTree
 }
 ```
 
+To start, we traverse the tree from the root. We decide which outgoing edge to follow and check if the node contains a substring of the `pattern` using the `Start` and `End` properties. If it does, we continue walking down the tree by selecting the next edge. In the end, we either traverse all the characters that belong to the `pattern` and return the position of the first one, or return `-1` to indicate that the `pattern` is not present in the source string.
+
+## Benchmarks
+
+At the start of the post, it was mentioned that suffix trees can improve the performance of certain string search scenarios, like when we need to run multiple pattern searches on the same string. Let's compare our implementation to the built-in `IndexOf` method, which is designed to find the first occurrence of a pattern and is [optimized](https://devblogs.microsoft.com/dotnet/performance_improvements_in_net_7/#arrays-strings-and-spans) for vectorization.
+
+In the benchmark, we will awkwardly try to reproduce a scenario, where a number of pattern searches is performed on a string containing 65,536 characters, which is not that large, by the way. Unlike other posts, this time round I'll use Apple's M1 chip:
+
+In the benchmark, we will try to simulate a situation where we search for a pattern multiple times on a string that contains 65,536 characters (which is not particularly large). We will use the same pattern for each search to make the benchmark more practical, as it would be tedious to use a unique pattern for each individual search. For this test, I will be using an Apple M1 chip:
+
+- BenchmarkDotNet=v0.13.2, OS=macOS Monterey 12.6 (21G115) [Darwin 21.6.0]
+- Apple M1 Pro, 1 CPU, 10 logical and 10 physical cores
+- .NET SDK=7.0.101, .NET Runtime=7.0.1
+
+```
+|     Method |    N |          Mean |  Allocated |
+|----------- |----- |--------------:|-----------:|
+|    IndexOf |   1k |      7.896 ms |       13 B |
+| SuffixTree |   1k |     22.414 ms | 15728056 B |
+|    IndexOf |  10k |     78.900 ms |      117 B |
+| SuffixTree |  10k |     22.915 ms | 15727880 B |
+|    IndexOf | 100k |    789.086 ms |      816 B |
+| SuffixTree | 100k |     29.227 ms | 15728366 B |
+|    IndexOf |   1M |  7,880.230 ms |      816 B |
+| SuffixTree |   1M |     92.972 ms | 15728628 B |
+|    IndexOf |  10M | 78,805.910 ms |     1008 B |
+| SuffixTree |  10M |    717.154 ms | 15728352 B |
+```
+
+As we can see, the time it takes for `IndexOf` to run is directly proportional to the number of searches `N` we perform on the string. The time it takes for a suffix tree search to run, on the other hand, increases somewhat logarithmically. However, it's important to note that this improved performance comes at the cost of using more space to store the suffix tree.
+
 # Further Reading
 
-https://stackoverflow.com/questions/19368962/approximate-substring-matching-using-a-suffix-tree
-
-https://www.cs.helsinki.fi/u/ukkonen/cpm931.pdf
-
-https://stackoverflow.com/questions/9452701/ukkonens-suffix-tree-algorithm-in-plain-english
-
-http://brenden.github.io/ukkonen-animation/
-
-https://codetube.vn/visual/suffixtree/
-
-https://www.youtube.com/watch?v=F3nbY3hIDLQ&t=2239s
-
-https://www.baeldung.com/java-pattern-matching-suffix-tree
-
-https://www.biostat.wisc.edu/bmi776/spring-09/lectures/suffix-trees.pdf
-
-https://www.youtube.com/watch?v=aPRqocoBsFQ
+- [Visualization of Ukkonen's Algorithm](http://brenden.github.io/ukkonen-animation/)
+- [Strings - Advanced data structures](https://www.youtube.com/watch?v=F3nbY3hIDLQ)
+- [Suffix Tree using Ukkonen's algorithm](https://www.youtube.com/watch?v=aPRqocoBsFQ)
