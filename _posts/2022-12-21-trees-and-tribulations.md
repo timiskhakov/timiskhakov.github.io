@@ -7,13 +7,13 @@ tags: [c#, algorithms]
 
 A while ago we [looked](haystacks-needles-and-hardware-intrinsics) at two string-searching algorithms: a naive search and a version that is optimized for SIMD instructions. These algorithms are sufficient for searching short texts or looking for a single substring, but if you need to search for multiple words in a longer text, such as a book, you may experience delays in the search results. To address this issue, there are faster string-searching algorithms that build indexing structures, like a suffix tree, during a preprocessing phase to speed up subsequent substring searches.
 
-In this post, we will learn about suffix trees, build one using Ukkonen's algorithm, and use it to search for strings. Suffix trees can be used for more than just string search, such as finding the longest repeated substring, the longest palindrome in a string, and implementing fuzzy string search (which we may cover in the future). String processing algorithms have advanced significantly, particularly with the study of DNA sequences.
+In this post, we will learn about suffix trees, build one using Ukkonen's algorithm, and use it to search for strings. Suffix trees can be used for more than just string search, such as finding the longest repeated substring, the longest palindrome in a string, and implementing fuzzy string search (which we may cover in the future). Lately string processing algorithms have advanced significantly, particularly with the study of DNA sequences.
 
-Before diving into suffix trees, let's first discuss a data structure called a trie, which will help us understand how suffix trees work.
+Before diving into the business of suffix trees, let's first discuss a data structure called a trie, which will help us understand how suffix trees work.
 
 # Trie
 
-A trie is a data structure that is often used to represent multiple strings in a single tree. Tries, also known as prefix trees, were previously used for implementing text suggestion before fancy AI took over. Let's build a simple trie to see how it works using a simple example. For this example, let's use the following list of words:
+A trie is a data structure that is often used to represent multiple strings in a single tree. Tries, also known as prefix trees, were previously used for implementing text suggestion before fancy AI took over. Let's build a simple trie to see how it works using the following list of words as an example:
 
 ```
 suede
@@ -28,19 +28,21 @@ We start by creating an empty root and adding the first word:
 ![Trie 1](/assets/images/trie-1.png)
 {: refdef}
 
+In the trie, a node holds a collection of edges, each representing a character. Since we only have one word in the trie so far, every node has only one edge. But this will change once we start adding more words.
+
 Next, we will add the second word:
 
 {:refdef: style="text-align: center;"}
 ![Trie 2](/assets/images/trie-2.png)
 {: refdef}
 
-When we add the third word, we notice that we already have an edge labeled `s` that matches the first letter of the word and points to node 1. We navigate to node 1 and continue down the tree, noting that we only need to add `um41` to the tree. We also notice that we have another matching edge, `u`, that leads to node 2. We continue down the tree, keeping in mind that we only have `m41` left to add:
+When we add the third word, we notice that we already have an edge labeled `s` that matches the first character of the word and points to node 1. We navigate to node 1 and continue down the tree, noting that we only need to add `um41` to the tree. We also notice that we have another matching edge, `u`, that leads to node 2. We continue down the tree, keeping in mind that we only have `m41` left to add:
 
 {:refdef: style="text-align: center;"}
 ![Trie 3](/assets/images/trie-3.png)
 {: refdef}
 
-The same thing happens when we add the fourth word. We have an edge that matches the first letter, so we proceed to node 6 with the rest of the word `ud`. Then we have another matching edge labeled `u` that leads us to node 7, leaving us with only `d` to add to the tree. Since there are no matching edges at this level, we add charachter `d` to the tree:
+The same thing happens when we add the fourth word. We have an edge that matches the first character, so we proceed to node 6 with the rest of the word `ud`. Then we have another matching edge labeled `u` that leads us to node 7, leaving us with only `d` to add to the tree. Since there are no matching edges at this level, we add character `d` to the tree:
 
 {:refdef: style="text-align: center;"}
 ![Trie 4](/assets/images/trie-4.png)
@@ -48,17 +50,17 @@ The same thing happens when we add the fourth word. We have an edge that matches
 
 The trie is now ready to use. To query the trie, we start at the root and traverse the tree. For example, let's say we want to find the string `sum`:
 
-1. At the root level, we check if any edge holds the charachter `s`. We follow the edge labeled `s` and end up at node 1.
+1. At the root level, we check if any edge holds the character `s`. We follow the edge labeled `s` and end up at node 1.
 2. We repeat the previous step for the next character `u`, and end up at node 2.
 3. Finally, we follow the edge labeled `m` and arrive at node 10, which concludes our traversal as we have reached the end of the query string.
 
-By traversing the tree this way, we can determine that the trie contains the word `sum`. If we had not found a matching edge for a letter in the query string, we would know that the word is not in the trie.
+By traversing the tree this way, we can determine that the trie contains the word `sum`. If we had not found a matching edge for a character in the query string, we would know that the word is not in the trie.
 
 Hang on a second, I hear you say, earlier in the post, we were talking about string search. How do a list of words, a trie, and prefix search help us with that? To answer that, we need to convert our trie, also known as a prefix tree, into a suffix tree.
 
 # Suffix Tree
 
-Suppose we have the text `queues` and want to search for substrings like `eu` or `es`. To do this, we first need to extract all possible suffixes:
+Suppose we have a string `queues` and want to search for substrings like `eu` or `es`. To do this, we first need to extract all possible suffixes of the source string:
 
 ```
 queues
@@ -69,37 +71,35 @@ es
 s
 ```
 
-Now we can see that any substring that exists in the string will be a prefix of one of the suffixes. We can use this observation to build a trie containing the suffixes and then use the same tree traversal algorithm we used before to search for a substring.
+Now we can see that any substring that exists in the string will be a prefix of one of the suffixes. We can use this observation to build a trie containing all the suffixes and then use the same tree traversal algorithm we used before to search for a substring:
 
 {:refdef: style="text-align: center;"}
 ![Suffix Tree 1](/assets/images/suffix-tree-1.png)
 {: refdef}
 
-As we can see, there are many "internal" nodes between the root and leaves that have a single child. We can compress the tree by combining the values of these edges into a single edge.
+As we can see, there are many "internal" nodes between the root and the leaves that have a single child. We can compress the tree by combining the values of these edges into a single edge and removing the nodes in-between:
 
 {:refdef: style="text-align: center;"}
 ![Suffix Tree 2](/assets/images/suffix-tree-2.png)
 {: refdef}
 
-This compressed tree is also called a radix tree. We can also save even more space by replacing substrings that lie on edges with intervals that point to the start and end of the substrings:
+This compressed tree is also called a radix tree. We can also save some space by replacing substrings that lie on the edges with intervals that point to the start and end of the substrings:
 
 {:refdef: style="text-align: center;"}
 ![Suffix Tree 3](/assets/images/suffix-tree-3.png)
 {: refdef}
 
-Now we have a performance issue to consider. While we can query a suffix tree in linear time (`O(m)`, where `m` is the length of the string we want to search for) by simply walking down the tree and following the correct edge, the time complexity for constructing the tree is somewhat slow. This is because we need to build the tree and then compress it, which increases the complexity to `O(n^2)`, where `n` is the number of characters in the source text.
+Now we have a performance issue to consider. While we can query a suffix tree in linear time `O(m)`, where `m` is the length of the string we want to search for, by simply walking down the tree and following the correct edge, the time complexity for constructing the tree is somewhat slow. This is because we need to build the tree and then compress it, which increases the complexity to `O(n^2)`, where `n` is the number of characters in the source text.
 
 To address this issue, we can use Ukkonen's algorithm to construct a suffix tree in linear time.
 
 # Ukkonen's Algorithm
 
-In my opinion, it may not be immediately intuitive and may require multiple read-throughs to fully grasp, but — appologies for the double negative — it is not incomprehensible. On Stack Overflow, there is an excellent [thread](https://stackoverflow.com/questions/9452701/ukkonens-suffix-tree-algorithm-in-plain-english) containing various explanations and implementations of the algorithm that may help with understanding how it works. I highly recommend reading it.
+Some say that Ukkonen's algorithm is a bit hard to grasp. In my opinion, it may not be immediately intuitive and may require a couple of read-throughs to fully grasp, but — appologies for the double negative — it is not incomprehensible. On Stack Overflow, there is an excellent [thread](https://stackoverflow.com/questions/9452701/ukkonens-suffix-tree-algorithm-in-plain-english) containing various explanations and implementations of the algorithm that may help with understanding how it works. It's by far and away the best resource I found on the topic, I highly recommend reading it.
 
-We will analyze the algorithm using the word `velvetveil`, that contains multiple repeating characters, as an example. (Something like `velvetrevolver` would, of course, be more appropriate to be on par with previous examples, but we will try to keep the example as simple as possible.) As you may have noticed, it's actually two words, but since the space is just another character, we remove it for simplicity. We start constructing the tree from the first character `v`, progressing to the end until we reach the last `l`.
+We will analyze the algorithm using the word `velvetveil` that contains multiple repeating characters as an example. (Something like `velvetrevolver` would, of course, be more appropriate to be on par with previous examples, but we will try to keep the example short and simple.) As you may have noticed, it's actually two words, but since the space is just another character, we remove it for simplicity. We start constructing the tree from the first character `v`, progressing to the end until we reach the last `l`.
 
-We will use the word `velvetveil`, which has multiple repeating characters, as an example to analyze the algorithm. (Something like `velvetrevolver` would be more fitting with the previous examples, but we will try to keep the example as simple as possible.) As you may have noticed, it is actually two words, but we will remove the space between them to keep the example short. We will start constructing the tree with the first character `v` and progress to the end until we reach the last character `l`.
-
-Before we start with the first letter, we need to introduce two helper variables: the `remainder` and the active point.
+Before we start with the first character, we need to introduce two helper variables: the `remainder` and the active point.
 
 The `remainder` keeps track of how many suffixes we need to add during each step. As we go through the string character by character, we consider each character to be a suffix. However, if we encounter a character that is already present in the tree, we increment the `remainder`, meaning that we will need to take it into account when processing the next character.
 
@@ -113,11 +113,9 @@ The active point is a triple that consists of three values: `active_node`, `acti
 2. If we insert a new node and it's not the first node created during the current step, we connect the previously inserted node and the new node through a suffix link.
 3. After creating a new node from an `active_node` that is not the root node, we follow the suffix link going out of that node, if there is one, and reset the `active_node` to the node it points to. If there is no suffix link, we set the `active_node` to the root. `active_edge` and `active_length` remain unchanged.
 
-These rules may not be immediately obvious, but we will see later how they make sense and help us construct the tree.
+These rules may not be immediately obvious, but later we will see how they help us construct the tree. We can think of the active point as a sliding window that moves through the string and shows us where in the tree we need to insert a new node. At each step, the suffix represented by the sliding window is added to the tree. The active point is the key element of the algorithm that helps us construct the tree in linear time.
 
-We can think of the active point as a sliding window that moves through the string and shows us where in the tree we need to insert a new node. At each step, the suffix represented by the sliding window is added to the tree. The active point is the key element of the algorithm that helps us construct the tree in linear time.
-
-Now let's start constructing the suffix tree. We will have 10 steps, each responsible for a character. Let's mark the current step as `#` and note that each edge holds an interval pointing to a substring within the source string. For example, an interval `[0,2]` would point to the word `vel`.
+Now let's start constructing the suffix tree. We will have 10 steps, each step being responsible for a character. Let's mark the current step as `#` and note that each edge holds an interval pointing to a substring within the source string. For example, an interval `[0,2]` would point to the word `vel`.
 
 ## Step 0
 
@@ -181,8 +179,6 @@ active_edge: 'v'
 active_length: 1
 ```
 
-Starting from the next step, I'll need more space for the illustrations, so I'll only keep the visual representation of the tree on the right and not include the model representation on the left.
-
 ## Step 5: velv<ins>e</ins>
 
 Things remain interesting in this step as well. First of all, the `remainder` is now `1`, which means that in addition to the fifth character `e`, we should insert one more suffix, namely `ve`. However, we already have `ve` in the tree as part of the edge `velve`, so once again we increment the `remainder` and increase `active_length` to `2`:
@@ -200,19 +196,19 @@ active_edge: 'v'
 active_length: 2
 ```
 
+Starting from the next step, I'll need more space for the illustrations, so I'll only keep the visual representation of the tree on the right and not include the model representation on the left.
+
 ## Step 6: velve<ins>t</ins>
 
 Things get even more interesting here. The `remainder` is `2`, which means that we should add three suffixes now: `vet`, `et`, and `t`.
 
-Let's start with `vet` by noticing that it is not in the tree. However, the active point points to the place where we should do the split and insert the suffix, which is the `ve` part of the `velve` edge. So we do the split:
+Let's start with `vet` by noticing that it is not in the tree. However, the active point points to the place where we should do the split and insert the suffix, which is the `ve` part of the `velve` edge. So we do the split. Then, according to rule 1, we should perform the following actions: keep the root as the `active_node`, set the `active_edge` to the first character of the next suffix (which is an edge that starts with `e`), and decrement the `active_length`:
 
 {:refdef: style="text-align: center;"}
 ![Ukkonen 6-1](/assets/images/ukkonen-6-1.png)
 {: refdef}
 
-Then, according to rule 1, we should perform the following actions: keep the root as the `active_node`, set the `active_edge` to the first character of the next suffix (which is an edge that starts with `e`), and decrement the `active_length`. Since we dealt with the first of the suffixes in this step, we decrement the `remainder` as well.
-
-Just to recap, the variables now look as follows:
+Since we dealt with the first of the suffixes in this step, we decrement the `remainder` as well. Just to recap, the variables now look as follows:
 
 ```
 remainder: 1
@@ -221,7 +217,7 @@ active_edge: 'e'
 active_length: 1
 ```
 
-Now, for the second suffix `et`. Again, we notice that it is not in the tree, which means we should do some splitting. The active point, pointing to the first `e` in the `elvet` edge, helps us find the split location. In addition to the split, we also should follow rule 2 of the active point and create a suffix link from the previously inserted node to the one we just created:
+Now, to the second suffix `et`. Again, we notice that it is not in the tree, which means we should do some splitting. The active point, pointing to the first `e` in the `elvet` edge, helps us find the split location. In addition to the split, we also should follow rule 2 and create a suffix link from the previously inserted node to the one we just created:
 
 {:refdef: style="text-align: center;"}
 ![Ukkonen 6-2](/assets/images/ukkonen-6-2.png)
@@ -238,7 +234,7 @@ active_edge: ''
 active_length: 0
 ```
 
-But we still have one suffix left — `t`. Since we don't have any edge that would have it, we just create a new node:
+But we still have one suffix left — `t`. Since we don't have any edge that would have it, we just create a new node from the root:
 
 {:refdef: style="text-align: center;"}
 ![Ukkonen 6-3](/assets/images/ukkonen-6-3.png)
@@ -263,7 +259,7 @@ active_length: 1
 
 ## Step 8: velvetv<ins>e</ins>
 
-In this step, we again have the `remainder` telling us that we should insert two suffixes: `ve` and `e`. Since we have the `ve` edge already, we'll do something interesting — we move the active point to node 4 and reset both `active_edge` and `active_length`:
+In this step, we again have the `remainder` telling us that we should insert two suffixes: `ve` and `e`. Since we have the entire `ve` edge already, we'll do something interesting — we move the active point to node 4 and reset both `active_edge` and `active_length`:
 
 {:refdef: style="text-align: center;"}
 ![Ukkonen 8](/assets/images/ukkonen-8.png)
@@ -280,7 +276,7 @@ active_length: 0
 
 ## Step 9: velvetve<ins>i</ins>
 
-Moving on to the penultimate character `i`, at this moment, according to the value of `remainder`, we need to add three suffixes: `vei`, `ei`, and `i`.
+Moving on to the penultimate character `i`. At this moment, according to the value of `remainder`, we need to add three suffixes: `vei`, `ei`, and `i`.
 
 We start by adding the suffix `vei`. Since we already followed the `ve` edge in the previous step, we insert a new node with an edge labeled `i`. As per rule 3, we also follow the suffix link from this node and set the active point to node 6:
 
@@ -341,7 +337,7 @@ But we, however, have all the suffixes added to tree in liniar time!
 
 # Implementation
 
-Now, let's implement the algorithm in C#. Instead of starting from scratch, we will port a Java version that was posted in [this](https://stackoverflow.com/a/14580102) Stack Overflow answer and slightly modify it for modern .NET.
+Now let's implement the algorithm in C#. Instead of starting from scratch, we will port a Java version that was posted in [this](https://stackoverflow.com/a/14580102) Stack Overflow answer and slightly modify it for modern .NET.
 
 To begin, we will combine the information for nodes and edges into a single class called `Node`:
 
@@ -362,7 +358,7 @@ internal class Node
 }
 ```
 
-The `Start` and `End` properties contain an interval that marks a substring within the string. In the algorithm description, this information was held by edges. The `SuffixLink` property is a suffix link pointing to another node. Its default value of `-1` indicates that there is no suffix link going out from the node. Finally, `_children` represents the edges going out of the node. The `char` key indicates the direction and the `int` value holds the index of the node at the other end of the edge.
+The `Start` and `End` properties contain an interval that marks a substring within the string. In the algorithm description, this information was held by edges. The `SuffixLink` property is a suffix link pointing to another node with the default value of `-1`, indicates that there is no suffix link going out from the node. Finally, `_children` represents the edges going out of the node. The `char` key indicates the direction and the `int` value holds the index of the node at the other end of the edge.
 
 We also need a method for calculating an incoming edge's length:
 
@@ -399,7 +395,7 @@ internal class Node
 }
 ```
 
-The first one is just an indexer for getting the right edge using the `char` key. `Contains` and `Put` are just wrappers around the `Dictionary<TKey, TValue>` class's methods.
+The first one is an indexer for getting the right edge using the `char` key. `Contains` and `Put` are just wrappers around the `Dictionary<TKey, TValue>` class' methods.
 
 Next stop is `NodeCollection`, a custom container for holding `Node` instances:
 
@@ -433,7 +429,7 @@ internal struct ActivePoint
 
 ## Construction
 
-Now, to the main class `SuffixTree` that has a big giant contructor in which we are going to implement the Ukkonen's algorithm:
+Now, to the class `SuffixTree` that has a big giant contructor in which we are going to implement Ukkonen's algorithm:
 
 ```csharp
 public class SuffixTree
@@ -503,12 +499,12 @@ public class SuffixTree
 }
 ```
 
-This block of code may seem intimidating at first, but it is a straightforward implementation of the algorithm we discussed in the previous section. Here's a summary of what it does:
+This block of code may seem intimidating at first, but it is a straightforward implementation of the algorithm we discussed in the previous section. Let's walkthrough its main parts:
 
 1. We start by saving a reference to the source string `text` as a `ReadOnlyMemory<char>`. We actually need a `Span<char>`, but due to the stack-only nature of `Span<T>`, which introduces certain limitations, we have to use `ReadOnlyMemory<char>` instead. Essentially, it's a wrapper around a `Span<char>` that helps mitigate some of the limitations, so we can use it as a class member.
-2. Next, we initialize the variables that we will need later: `root`, `activePoint`, and `remainder`. Note that we initialize the root with `-1` because it doesn't hold any valuable information and only serves as a reference point.
-3. We start the algorithm by going through each character of `text` one by one. For each character, we define a `needSuffixLink` variable and set it to `0` by default, and increment the `remainder`.
-4. In the `while` loop, we go over the suffixes we need to add at each step, as the remainder tells us how many we have left.
+2. Next, we initialize familiar variables that we will need later: `root`, `activePoint`, and `remainder`. Note that we initialize the root with `-1`s because it doesn't hold any valuable information and only serves as a reference point.
+3. We start the algorithm by going through each character of `text` one by one. For each character, we define a `needSuffixLink` variable setting it to `0` by default, and increment the `remainder`.
+4. In the `while` loop, we go over the suffixes we need to add at each step, as the `remainder` tells us how many we have left.
 5. In the first `if` statement, we check the current length of the active point: if it's `0`, we save the current character's position as the active edge. Since we can exit the loop early, we might need the current step for calculating the positions of the suffixes correctly.
 6. In the second `if` statement, we check if we have an edge that starts with the first character of the suffix. If not, we create a leaf and check if the active node needs a suffix link.
 7. However, if the edge does start with the first character of the suffix, we have to perform a few actions:
@@ -518,7 +514,7 @@ This block of code may seem intimidating at first, but it is a straightforward i
 9. If the active node is the root, we have to decrement the active length and adjust the edge for the next suffix.
 10. Otherwise, we follow the suffix link, if one is present.
 
-The `AddSuffixLink` is really simple:
+`AddSuffixLink` has a simple implementation:
 
 ```csharp
 private void AddSuffixLink(int node, ref int needSuffixLink)
@@ -549,7 +545,7 @@ private bool WalkDown(int next, int position, ref ActivePoint activePoint)
 
 ## Search
 
-Once the tree is defined, implementing a string searching algorithm on top of it will be easy:
+Once the tree is defined, implementing a string searching algorithm that finds the first occurrence of a pattern will be easy:
 
 ```csharp
 public class SuffixTree
@@ -588,9 +584,7 @@ To start, we traverse the tree from the root. We decide which outgoing edge to f
 
 At the start of the post, it was mentioned that suffix trees can improve the performance of certain string search scenarios, like when we need to run multiple pattern searches on the same string. Let's compare our implementation to the built-in `IndexOf` method, which is designed to find the first occurrence of a pattern and is [optimized](https://devblogs.microsoft.com/dotnet/performance_improvements_in_net_7/#arrays-strings-and-spans) for vectorization.
 
-In the benchmark, we will awkwardly try to reproduce a scenario, where a number of pattern searches is performed on a string containing 65,536 characters, which is not that large, by the way. Unlike other posts, this time round I'll use Apple's M1 chip:
-
-In the benchmark, we will try to simulate a situation where we search for a pattern multiple times on a string that contains 65,536 characters (which is not particularly large). We will use the same pattern for each search to make the benchmark more practical, as it would be tedious to use a unique pattern for each individual search. For this test, I will be using an Apple M1 chip:
+In the benchmark, we will try to simulate a situation where we search for a short pattern multiple times on a string that contains 65,536 characters (which is not particularly large). We will use the same pattern for each search to make the benchmark more practical, as it would be tedious to use a unique pattern for each individual search. For this test, I will be using an Apple M1 chip:
 
 - BenchmarkDotNet=v0.13.2, OS=macOS Monterey 12.6 (21G115) [Darwin 21.6.0]
 - Apple M1 Pro, 1 CPU, 10 logical and 10 physical cores
@@ -612,6 +606,10 @@ In the benchmark, we will try to simulate a situation where we search for a patt
 ```
 
 As we can see, the time it takes for `IndexOf` to run is directly proportional to the number of searches `N` we perform on the string. The time it takes for a suffix tree search to run, on the other hand, increases somewhat logarithmically. However, it's important to note that this improved performance comes at the cost of using more space to store the suffix tree.
+
+For this benchmark, we used a fairly short pattern, but as the pattern gets longer, it takes more time for the algorithm to go through the tree. As the pattern size gets closer to the size of the source string, using a suffix tree becomes less practical. Which demonstrates the importance of testing performance for your specific cases.
+
+You can check out the code from this post on GitHub: [SuffixTreeSearch](https://github.com/timiskhakov/SuffixTreeSearch).
 
 # Further Reading
 
