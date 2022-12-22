@@ -5,7 +5,7 @@ excerpt: Speeding up string search with a suffix tree and Ukkonen's algorithm
 tags: [c#, algorithms]
 ---
 
-A while ago we [looked](haystacks-needles-and-hardware-intrinsics) at two string-searching algorithms: a naive search and a version that is optimized for SIMD instructions. These algorithms are sufficient for searching short texts or looking for a single substring, but if you need to search for multiple words in a longer text, such as a book, you may experience delays in the search results. To address this issue, there are faster string-searching algorithms that build indexing structures, like a suffix tree, during a preprocessing phase to speed up subsequent substring searches.
+A while ago we [looked](haystacks-needles-and-hardware-intrinsics) at two string-searching algorithms: a naive search and a version that is optimized for SIMD instructions. These algorithms are sufficient for searching short texts or looking for a single substring, but if you need to perform multiple searches over a longer text, such as a book, you may experience delays in the search results. To address this issue, there are faster string-searching algorithms that build indexing structures, like a suffix tree, during a preprocessing phase to speed up subsequent substring searches.
 
 In this post, we will learn about suffix trees, build one using Ukkonen's algorithm, and use it to search for strings. Suffix trees can be used for more than just string search, such as finding the longest repeated substring, the longest palindrome in a string, and implementing fuzzy string search (which we may cover in the future). Lately string processing algorithms have advanced significantly, particularly with the study of DNA sequences.
 
@@ -89,13 +89,13 @@ This compressed tree is also called a radix tree. We can also save some space by
 ![Suffix Tree 3](/assets/images/suffix-tree-3.png)
 {: refdef}
 
-Now we have a performance issue to consider. While we can query a suffix tree in linear time `O(m)`, where `m` is the length of the string we want to search for, by simply walking down the tree and following the correct edge, the time complexity for constructing the tree is somewhat slow. This is because we need to build the tree and then compress it, which increases the complexity to `O(n^2)`, where `n` is the number of characters in the source text.
+Now we have a performance issue to consider. While we can query a suffix tree in linear time `O(m)`, where `m` is the length of the string we want to search for, by simply walking down the tree and following the correct edge, constructing the tree is somewhat slow. This is because we need to build the tree and then compress it, which increases the time complexity to `O(n^2)`, where `n` is the number of characters in the source text.
 
 To address this issue, we can use Ukkonen's algorithm to construct a suffix tree in linear time.
 
 # Ukkonen's Algorithm
 
-Some say that Ukkonen's algorithm is a bit hard to grasp. In my opinion, it may not be immediately intuitive and may require a couple of read-throughs to fully grasp, but — appologies for the double negative — it is not incomprehensible. On Stack Overflow, there is an excellent [thread](https://stackoverflow.com/questions/9452701/ukkonens-suffix-tree-algorithm-in-plain-english) containing various explanations and implementations of the algorithm that may help with understanding how it works. It's by far and away the best resource I found on the topic, I highly recommend reading it.
+Some say that Ukkonen's algorithm is a bit hard to grasp. In my opinion, it may not be immediately intuitive and may require a couple of read-throughs to fully grasp, but it — appologies for the double negative — is not incomprehensible. On Stack Overflow, there is an excellent [thread](https://stackoverflow.com/questions/9452701/ukkonens-suffix-tree-algorithm-in-plain-english) containing various explanations and implementations of the algorithm that may help with understanding how it works. It's by far and away the best resource I found on the topic, I highly recommend reading it.
 
 We will analyze the algorithm using the word `velvetveil` that contains multiple repeating characters as an example. (Something like `velvetrevolver` would, of course, be more appropriate to be on par with previous examples, but we will try to keep the example short and simple.) As you may have noticed, it's actually two words, but since the space is just another character, we remove it for simplicity. We start constructing the tree from the first character `v`, progressing to the end until we reach the last `l`.
 
