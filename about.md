@@ -4,9 +4,9 @@ title: About
 permalink: /about/
 ---
 
-My name is Timur, I'm a Helsinki-based software developer currently working at [Futurice](https://futurice.com). At work I primarily build backend applications that run in clouds. In general, I'm interested in a vast range of topics: hardware, music, video games, and many more.
+Hi there! My name is Timur, I'm a Helsinki-based software developer currently working at [Futurice](https://futurice.com). My primary focus at work is building backend applications that can run in the cloud. I'm passionate about creating systems that are both scalable and reliable, and am usually involved in every step of the application development process from design to programming, delivery, and maintenance. I have experience working with a variety of technologies including .NET/.NET Core, C#, Go, Docker, Azure, AWS, SQL databases, and distributed systems.
 
-In this blog, I usually write about approaches and techniques that help us build more efficient software.
+When I'm not working, I enjoy exploring a wide range of topics such as hardware, music, and video games. In this blog, I typically share approaches and techniques that can help us build more efficient software.
 
 ### Public Talks
 
