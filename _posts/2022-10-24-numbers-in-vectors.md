@@ -536,7 +536,7 @@ You can check out the code from this post on GitHub: [ParsingNumbers](https://gi
 
 # Footnotes
 
-[^1]: Processors that use other instruction set architectures, such as ARM, also support SIMD operations, but in the context of this post, we're only interested in the x64 ISA.
+[^1]: Processors that use other instruction set architectures, such as ARM, also support SIMD operations, but in the context of this post, we're only interested in the x86-64 ISA.
 
 [^2]: It's possible to achieve cross-lane shuffling using several instructions, but to keep things simple and follow the blog idea we won't go this direction.
 

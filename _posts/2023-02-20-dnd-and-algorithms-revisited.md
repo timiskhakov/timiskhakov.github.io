@@ -96,7 +96,7 @@ BenchmarkBinomial-12             3334281             345.5 ns/op
 BenchmarkLemire-12              12011446              90.5 ns/op
 ```
 
-I'm once again running out of meaningful names for the solutions, so I just named this new one as `Lemire`. Bear in mind, though, I'm running this on a x64 processor while employing a quite specific hardware trick. Other chips, like Apple's M1 and M2, may give different results.
+I'm once again running out of meaningful names for the solutions, so I just named this new one as `Lemire`. Bear in mind, though, I'm running this on a x86-64 processor while employing a quite specific hardware trick. Other chips, like Apple's M1 and M2, may give different results.
 
 # Smart Brute-Force with Caching
 
