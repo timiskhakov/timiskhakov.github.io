@@ -156,7 +156,7 @@ func Cache(s, n, m int) int {
 By applying this simple optimization, that is not tied to any specific platform, by the way, we squeeze even more performance:
 
 ```
-oos: linux
+goos: linux
 goarch: amd64
 pkg: github.com/timiskhakov/dnd/src
 cpu: Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz
