@@ -10,5 +10,6 @@ When I'm not working, I enjoy exploring a wide range of topics such as hardware,
 
 ### Public Talks
 
+- "Programming Guitar Music in Go" at a [Futurice TechWeeklies meetup](https://futurice.com/tech-weeklies) in May 2023: [slides](https://github.com/timiskhakov/music-slides)
 - "Programming Guitar Music" at a [GDG Berlin Golang meetup](https://www.meetup.com/golang-users-berlin/events/288051077) in September 2022: [slides](https://github.com/timiskhakov/music-slides)
 - "Exploring Spans and Pipelines" at [Tampere.NET first meetup](https://meetabit.com/events/first-meetup) in February 2020: [slides](https://github.com/timiskhakov/ExploringSpansAndPipelines/blob/master/exploring-spans-and-pipelines.pdf)
