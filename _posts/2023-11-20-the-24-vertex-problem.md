@@ -126,7 +126,7 @@ But there's a catch with DFS — it can be slow. In the worst case, there could 
 
 # Held–Karp Algorithm
 
-The Held-Karp algorithm was initially made to solve the famous traveling salesman problem. But with a few tweaks, we can adapt it for our use. We'll base our approach on a post by Clara Nguyễn, [Hamiltonian Paths & bitDP](http://utk.claranguyen.me/talks.php?id=bitdp), where they applied the algorithm to a different variation of the Hamiltonian path problem. Even though they solve a slightly different problem, the main idea stays the same. So, we begin by following their path (no pun intended), but eventually, we'll have to go our own way.
+The Held-Karp algorithm was initially made to solve the famous traveling salesman problem. But with a few tweaks, we can adapt it for our use. We'll base our approach on an article by Clara Nguyễn and Natalie Bogda, [Hamiltonian Paths & bitDP](http://utk.claranguyen.me/talks.php?id=bitdp), where they applied the algorithm to a different variation of the Hamiltonian path problem. Even though they solve a slightly different problem, the main idea stays the same. So, we begin by following their path (no pun intended), but eventually, we'll have to go our own way.
 
 The main idea behind the Held-Karp algorithm is to use dynamic programming. This means we break the problem into smaller sub-problems and try to solve them instead. If that doesn't work, we break those sub-problems into even simpler sub-sub-problems and keep going until we reach the simplest case we can handle. It might sound a lot like recursion, but there's a twist. Recursion starts with the big problem and breaks it into smaller ones (top-down). Dynamic programming works the other way around; it solves the small sub-problems first, stores the result, and then uses it to solve the original problem (bottom-up).
 
@@ -151,7 +151,7 @@ First, we list all different ways we can combine its vertices into subsets. For 
 
 Each subset shows which vertices are in it. For instance, the first subset has none, so it's not useful for us. The second subset has only vertex 0, the third has only vertex 1, the fourth has both vertices 0 and 1, and so on. The last subset includes all the vertices of the graph. We can easily see that the total number of subsets is `2^n`.
 
-Now, we bring in something called the bitDP table (as named in Clara's article). This table keeps track of connections that lead from one subset of the graph to another. We'll soon see how it helps us with our problem. For now, let's start by filling the table with `0`s:
+Now, we bring in something called the bitDP table (as named in Clara and Natalie's article). This table keeps track of connections that lead from one subset of the graph to another. We'll soon see how it helps us with our problem. For now, let's start by filling the table with `0`s:
 
 {:refdef: style="text-align: center;"}
 ![FTL Table 1](/assets/images/ftl-table-1.png)
