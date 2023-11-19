@@ -5,7 +5,7 @@ excerpt: Solving a variation of the Hamiltonian path problem
 tags: [c#, dynamic programming, algorithms]
 ---
 
-If you've played [FTL: Faster Than Light](https://subsetgames.com/ftl.html), a game described by its developer Subset Games as a "spaceship simulation roguelike-like," you probably know it's all about min-maxing. That is, maximizing your ship's strengths and minimizing its weaknesses. It applies not only to the ship, though, as another strategy to a successful run is exploring as many beacons on the map as you can to collect more scrap (the in-game currency) and encounter events that could lead to rewards. However, the game challenges this approach by introducing the Rebel fleet that advances through the map with each turn and limits your space for maneuvers:
+If you've played [FTL: Faster Than Light](https://subsetgames.com/ftl.html), a game described by its developer Subset Games as a "spaceship simulation roguelike-like," you probably know it's all about min-maxing. That is, maximizing your ship's strengths and minimizing its weaknesses. It applies not only to the ship, though, as another strategy to a successful run is to maximize the amount of beacons you explore on the map before reaching the exit. It helps you, as a player, collect more scrap (the in-game currency)  and encounter events that could lead to various rewards. The game, however, plays against this strategy by introducing the Rebel fleet that advances through the map with each turn and limits your space for maneuvers:
 
 {:refdef: style="text-align: center;"}
 ![FTL 1](/assets/images/ftl-1.png)
@@ -247,7 +247,7 @@ First off, we create the table. Since we only need `0`s and `1`s for the vertex 
 
 1. We go through all the subsets, starting from `1 << start` because we're only interested in vertices connected to `start`. So, we can skip processing the ones before it.
 2. Next, we check each vertex in the subset and filter out the ones that don't belong here.
-3. To take out each vertex individually, we XOR the subset against another one that contains only that vertex (since the subset is as integer that can be seen as a bitmask, we just clear its `j`th bit), giving us a new subset called `mask`.
+3. To take out each vertex individually, we XOR the subset against another one that contains only that vertex (since the subset is as an integer that can be seen as a bitmask, we just clear its `j`th bit), giving us a new subset called `mask`.
 4. We look at the column `mask` and check if any vertices are set to `true` and if they connect to the one we just took out.
 5. If we find any, we mark the processed vertex's cell as `true` and move on to the next vertex from the subset.
 
