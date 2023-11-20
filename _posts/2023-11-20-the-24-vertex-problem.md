@@ -1,7 +1,7 @@
 ---
 layout: post
 title: The 24-Vertex Problem
-excerpt: Solving a variation of the Hamiltonian path problem
+excerpt: Solving a variation of the Hamiltonian path problem with the Held-Karp algorithm
 tags: [c#, dynamic programming, algorithms]
 ---
 
