@@ -5,7 +5,7 @@ excerpt: Solving a variation of the Hamiltonian path problem with the Held-Karp 
 tags: [c#, dynamic programming, algorithms]
 ---
 
-If you've played [FTL: Faster Than Light](https://subsetgames.com/ftl.html), a game described by its developer Subset Games as a "spaceship simulation roguelike-like," you probably know it's all about min-maxing. That is, maximizing your ship's strengths and minimizing its weaknesses. It applies not only to the ship, though, as another strategy to a successful run is to explore a maximum number of beacons on the map before reaching the exit. It helps you collect more scrap (the in-game currency) and encounter events that could lead to various rewards. The game, however, plays against this strategy by introducing the Rebel fleet that advances through the map with each turn and limits your space for maneuvers:
+If you've played [FTL: Faster Than Light](https://subsetgames.com/ftl.html), a game described by its developer Subset Games as a "spaceship simulation roguelike-like", you probably know it's all about min-maxing. That is, maximizing your ship's strengths and minimizing its weaknesses. It applies not only to the ship, though, as another strategy to a successful run is to explore a maximum number of beacons on the map before reaching the exit. It helps you collect more scrap (the in-game currency) and encounter events that could lead to various rewards. The game, however, plays against this strategy by introducing the Rebel fleet that advances through the map with each turn and limits your space for maneuvers:
 
 {:refdef: style="text-align: center;"}
 ![FTL 1](/assets/images/ftl-1.png)
