@@ -13,13 +13,13 @@ If you've played [FTL: Faster Than Light](https://subsetgames.com/ftl.html), a g
 
 While it's not an entirely bad idea to check out a beacon captured by the Rebels, it usually means facing a tough fight against their well-armed ship. Unfortunately, surviving the battle doesn't come with any rewards. So, players often plan their route to the exit beacon, trying to avoid the Rebel fleet along the way.
 
-This is where the game scratches my programming itch. Unfortunately, it's likely impossible to create a program — let's call it a navigator — that can visit all beacons just once, avoid Rebel-controlled ones, and exit before they catch up. Apart from the Rebels, there are other factors at play. Some beacons might be distress signals (like the one in the screenshot above) offering more rewards. Others could be stores the player wants to check out. Sometimes, it might be worth the risk to visit a Rebel-controlled beacon and jump to an interesting location from there. In certain situations, revisiting a beacon, which gives no reward, could be a strategic move. Finally, the game keeps beacon types a mystery until you land on a nearby one, so you don't know which ones are worth checking out beforehand[^1].
+This is where the game scratches my programming itch. Unfortunately, it's likely impossible to create a program — let's call it a navigator — that can visit all beacons just once, avoid Rebel-controlled ones, and exit before they catch up. Apart from the Rebels, there are other factors at play. Some beacons might be distress signals (like the one in the screenshot above) offering more rewards. Others could be stores the player wants to check out. Sometimes, it might be worth the risk to visit a Rebel-controlled beacon and jump to an interesting location from there. In certain situations, revisiting a beacon, which gives no reward, could be a strategic move. Finally, the game keeps beacon types a mystery until you land on a nearby one, so you don't know which ones are worth checking out beforehand.
 
 Now, let's remove the fleet and different beacon types from the equation, and go back to the map again. The challenge of finding a path that starts from the beginning, reaches the exit, and covers as many beacons as possible remains interesting. For the rest of this post, we'll work on making an FTL navigator that finds this path.
 
 # Problem
 
-Let's try to be a bit more formal and define the problem using math terms. As you may have noticed already, the map can be represented as an unweighted undirected graph[^2]. That is, we only care if two vertices — since we talk proper math, it's vertices now, not beacons — are connected or not. There is no associated weight or cost with the edge between them, and we can traverse the edge in both directions.
+Let's try to be a bit more formal and define the problem using math terms. As you may have noticed already, the map can be represented as an unweighted undirected graph[^1]. That is, we only care if two vertices — since we talk proper math, it's vertices now, not beacons — are connected or not. There is no associated weight or cost with the edge between them, and we can traverse the edge in both directions.
 
 We will stay within game restrictions and say that the maximum number of vertices is capped at 24. Subset Games has posted an interesting [tweet](https://twitter.com/subsetgames/status/1234309658854084608) revealing how the beacon map is generated and where the 24 is coming from:
 
@@ -357,6 +357,4 @@ You can check out the code from this post on GitHub: [FtlNavigator](https://gith
 
 # Footnotes
 
-[^1]: Unless your ship is equipped with a Long-Ranged Scanner.
-
-[^2]: [Multiverse](https://subsetgames.com/forum/viewtopic.php?t=35332), an FTL mod that adds a lot of new content to the base game, actually shows the beacon map as a graph.
+[^1]: [Multiverse](https://subsetgames.com/forum/viewtopic.php?t=35332), an FTL mod that adds a lot of new content to the base game, actually shows the beacon map as a graph.
