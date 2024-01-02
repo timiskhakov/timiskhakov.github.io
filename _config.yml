@@ -11,3 +11,5 @@ permalink: /posts/:title
 plugins:
   - jekyll-feed
   - jekyll-katex
+kramdown:
+  footnote_backlink: "&#8617;&#xfe0e;"
