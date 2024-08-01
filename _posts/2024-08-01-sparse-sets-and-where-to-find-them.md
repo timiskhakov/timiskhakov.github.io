@@ -1,7 +1,7 @@
 ---
 layout: post
 title: Sparse Sets and Where to Find Them
-excerpt: Building a custom dictionary for fun and profit
+excerpt: Building custom dictionaries for fun and profit
 tags: [c#, data structures]
 ---
 
@@ -52,21 +52,21 @@ In the benchmarks, I'm using a simple code snippet that artificially emulates th
 - Intel Core i7-10750H CPU 2.60GHz, 1 CPU, 12 logical and 6 physical cores
 - .NET SDK 8.0.303, .NET 8.0.7
 
-Not only did we significantly decrease memory allocation, but we also slightly reduced the time!
+Not only did we significantly decrease memory allocation, we also slightly reduced the time.
 
 Speaking of time, though, if we take a look at the [Remarks](https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2.clear?view=net-8.0#remarks) section of the dictionary documentation, we find an interesting fact about the `Clear` method:
 
 > This method is an `O(n)` operation, where `n` is the capacity of the dictionary.
 
-Considering the number of elements in `results`, let's call `m`, and multiplying it by the number of key-value pairs in the `cache`, `n`, we get `O(m*n)` complexity just for cleaning the dictionary. Well, apparently, the overhead of cleaning is marginally faster than creating a new dictionary each time we need it. However, this led me down a rabbit hole to see if we could eliminate this overhead to further decrease the time while keeping memory usage proportional to the `cache` size. It turns out we can. In this post, we'll explore sparse sets, consulting with Russ Cox's article, [Using Uninitialized Memory for Fun and Profit](https://research.swtch.com/sparse), and see if they can help us with this problem.
+Considering the number of elements in `results`, let's call `m`, and multiplying it by the number of key-value pairs in the `cache`, `n`, we get `O(m*n)` complexity just for clearing the dictionary. Well, apparently, the overhead of clearing is marginally better than creating a new dictionary each time we need it. However, this led me down a rabbit hole to see if we could get rid of this overhead to further decrease the time while keeping memory usage proportional to the `cache` size. It turns out we can. In this post, we'll explore sparse sets, consulting with Russ Cox's article, [Using Uninitialized Memory for Fun and Profit](https://research.swtch.com/sparse), and see if they can help us with this problem.
 
 # Sparse Sets
 
 If you've ever worked with dictionaries (or maps, as they're called in some languages), you probably know they are based on hash tables. To put it simply, they use a hash function to compute a hash code from a key. This hash code then serves as an index pointing to a location in an array where the value is stored. The better the hash function, the more evenly distributed within the array the hash codes will be. Since the key space is usually much larger than the array size, different keys can produce the same hash code, resulting in a collision. Various collision resolution techniques exist to handle these scenarios. For example, an array's item could store buckets or slots for multiple values instead of a single scalar value.
 
-However, using hash tables and hash functions is not the only way to design a map. In certain cases, when the key space is known and relatively small, say, an integer of 4 bytes like in our problem, the overhead of hashing and resolving collision conflicts can be eliminated, and fast index lookups can be used instead. One way to achieve that is to use sparse sets, an idea that has been around since the 70s.
+However, using hash tables and hash functions is not the only way to design a map. In certain cases, when the key space is known and relatively small, say, a 32-bit integer like in our problem, the overhead of hashing and resolving collision conflicts can be removed, and fast index lookups can be used instead. However, if we were to use regular arrays to store value with indexes serving as keys, we would be back to square one with the linear time for clearing the dictionary. So, what should we do? This is where sparse sets, an idea that has been around since the 1970s, come to the rescue.
 
-When it comes to a set of integers, one of the most popular implementations is a bit array, where each integer is represented by its index within the array. Initially, the array is filled with `0` or unset bits, indicating that it's empty. To determine if the set contains an integer, we look up the corresponding index and check the bit. Similarly, to add an integer to the set, we simply set the bit. The following picture shows that we have added the numbers `0`, `4`, `5`, and `1` to the set:
+When it comes to a set of integers, one of the most popular implementations is a bit array, where each integer is represented by its index within the array. Initially, the array is filled with `0`s or unset bits, indicating that it's empty. To determine if the set contains an integer, we look up the corresponding index and check the bit. Similarly, to add an integer to the set, we simply set the bit. The following picture shows that we have added the numbers `0`, `4`, `5`, and `1` to the set:
 
 {:refdef: style="text-align: center;"}
 ![Bit array](/assets/images/bit-array.png)
@@ -74,7 +74,7 @@ When it comes to a set of integers, one of the most popular implementations is a
 
 The bit array works well until we need to perform two operations: iteration and clearing. In both cases, the time is linear relative to the number of elements in the array. If the array is sparsely populated, meaning it has large gaps between set bits, we would spend quite a while going over unset bits that aren't very interesting to us.
 
-Let’s try to represent it differently as a packed array of integers instead. In our example, we pack the bit array, replacing `1`s with the actual indexes, and can call it `dense`. By doing so, we go from an array containing 8 bits to an array containing 4 integers:
+Let's try to represent it differently as a packed array of integers instead. In our example, we pack the bit array, replacing `1`s with the actual indexes, and can call it `dense`. By doing so, we go from an array containing 8 bits to an array containing 4 integers:
 
 {:refdef: style="text-align: center;"}
 ![Dense](/assets/images/dense.png)
@@ -131,12 +131,12 @@ public class SparseDictionary<T>
 }
 ```
 
-With this setup, we can see that implementing `Count` and `Capacity` methods to get the number of elements and the dictionary's maximum capacity, respectively, is as easy as exposing a few fields:
+With this setup, we can see that implementing `Count` and `Capacity` to get the number of elements and the dictionary's maximum capacity, respectively, is as easy as exposing a few fields via properties:
 
 ```csharp
 public int Capacity => _sparse.Length;
 
-public int Count() => _position;
+public int Count => _position;
 ```
 
 The most interesting part, perhaps, would be the indexer:
@@ -146,8 +146,14 @@ public T this[int key]
 {
   get
   {
-    if (key < 0 || key >= _sparse.Length) throw new IndexOutOfRangeException($"Key {key} is out of range 0..{_sparse.Length}");
-    if (!TryGetIndex(key, out var index)) throw new KeyNotFoundException($"Key {key} is not found");
+    if (key < 0 || key >= _sparse.Length)
+    {
+      throw new IndexOutOfRangeException($"Key {key} is out of range 0..{_sparse.Length}");
+    }
+    if (!TryGetIndex(key, out var index))
+    {
+      throw new KeyNotFoundException($"Key {key} is not found");
+    }
     return _dense[index].Value!;
   }
   set
@@ -245,14 +251,178 @@ Now if we compare the results, we can see that we managed to slash even more tim
 
 Neat. We have traded a bit more memory to save roughly 20% of time.
 
+It's all fine and dandy, but in our particular problem, we don't iterate over the dictionary. We didn't even implement iteration in `SparseDictionary`. Which poses a question: if we don't really need iteration, can we sacrifice it to gain some performance for reads and writes? The answer is yes: with a bit of a change, we can transform the dictionary based on the sparse set into a dictionary based on generations.
+
+# GenerationDictionary
+
+It turns out that I was not the only one looking in the same direction; Iskander Sharipov also explored this idea in his interesting article, [Generations-based array](https://www.quasilyte.dev/blog/post/gen-map/), which explains how we can improve read and write performance by giving up on iteration's speed. The article does an excellent job of explaining the inner workings behind the approach, so I won't go into detail here.
+
+The core idea behind this approach is that, since we use integers as keys, we can store items in one array rather than in a sparse-dense combination. However, to achieve constant time complexity for clearing the dictionary, we use a notion of generations. The dictionary has a generation number, which is assigned to each item when it is added. Every time we read from the dictionary, we check if the dictionary's generation matches the item's generation. When the dictionary is cleared, we simply increment the generation number. Quite elegant, isn't it?
+
+The code in the article is written in Go, so let's port it to C#, starting with the `Item` class:
+
+```csharp
+internal class Item<T>
+{
+  public int Generation;
+  public T? Value;
+}
+```
+
+We only need two fields for the item: the `Generation` and the `Value` itself. By default, they are `0` and `null`, respectively. Next stop, we create the dictionary class:
+
+```csharp
+public class GenerationDictionary<T>
+{
+  private int _generation = 1;
+  private int _count = 0;
+  private readonly Item<T>[] _items;
+
+  public GenerationDictionary(int size)
+  {
+    _items = new Item<T>[size];
+    for (var i = 0; i < size; i++)
+    {
+      _items[i] = new Item<T>();
+    }
+  }
+}
+```
+
+Here we define dictionary's `_generation`, which is set to `1` to indicate that it contains no items, the number of items `_count`, and `_items` that actually stores the items. We also need a constructor that takes in the size of the dictionary to initialize the `_items` array.
+
+Similarly to `SparseDictionary`, we can easily add `Capacity` and `Count` methods:
+
+```csharp
+public int Capacity => _items.Length;
+
+public int Count => _count;
+```
+
+The indexer, however, would look a bit differently from the previous version:
+
+```csharp
+public T this[int key]
+{
+  get
+  {
+    if (key < 0 || key >= _items.Length)
+    {
+      throw new IndexOutOfRangeException($"Key {key} is out of range 0..{_items.Length}");
+    }
+    var item = _items[key];
+    if (item.Generation != _generation)
+    {
+      throw new KeyNotFoundException($"Key {key} is not found");
+    }
+    return item.Value!;
+  }
+  set
+  {
+    if (key < 0 || key >= _items.Length)
+    {
+      throw new IndexOutOfRangeException($"Key {key} is out of range 0..{_items.Length}");
+    }
+    _items[key].Generation = _generation;
+    _items[key].Value = value;
+    _count++;
+  }
+}
+```
+
+For the getter part, we first check if the key is within range; if not, we throw an `IndexOutOfRangeException`. Then, we retrieve the item using the `key` and check its `Generation`: if it doesn't match the dictionary's `_generation`, we throw a `KeyNotFoundException`. Otherwise, we return its value.
+
+The setter part becomes even more straightforward in this implementation. First, we do the same check as in the getter. Then, we simply update the item's `Generation` and `Value`, remembering to also increment `_count`.
+
+Next, let's implement the methods we added to `SparseDictionary`: `ContainsKey`, `TryGetValue`, and `Remove`:
+
+```csharp
+public bool ContainsKey(int key)
+{
+  if (key < 0 || key >= _items.Length) return false;
+  return _items[key].Generation == _generation;
+}
+
+public bool TryGetValue(int key, [NotNullWhen(true)] out T? value)
+{
+  if (key < 0 || key >= _items.Length)
+  {
+    value = default;
+    return false;
+  }
+
+  var item = _items[key];
+  if (item.Generation != _generation)
+  {
+    value = default;
+    return false;
+  }
+
+  value = item.Value!;
+  return true;
+}
+
+public void Remove(int key)
+{
+  if (key < 0 || key >= _items.Length) return;
+
+  var item = _items[key];
+  if (item.Generation != _generation) return;
+
+  _items[key].Generation = 0;
+  _count--;
+}
+```
+
+Much like in `SparseDictionary`, the first two methods are very similar to the getter, but they return `false` instead of throwing exceptions. For the `Remove` method, we need to check the `key` and the item's `Generation`, and set the `Generation` to `0` to indicate that the item is no longer present in the dictionary. We must also decrement `_count`.
+
+Finally, the `Clear` method is slightly more complex than its counterpart from `SparseDictionary`, but this complexity comes only because we need to be cautious with an integer overflow:
+
+```csharp
+public void Clear()
+{
+  _count = 0;
+  if (_generation < int.MaxValue)
+  {
+    _generation++;
+    return;
+  }
+    
+  _generation = 1;
+  for (var i = 0; i <_items.Length; i++)
+  {
+    _items[i].Generation = 0;
+  }
+}
+```
+
+Here we first set `_count` to `0` and then check if `_generation` has reached `int.MaxValue`. If it's below the maximum value, we simply increment `_generation` and return. Otherwise, we must iterate over all items and explicitly set their `Generation` to `0`. Although this implementation technically iterates over all items during clearing, it only occurs once every 2 147 483 647 times, which is not that bad, if you ask me.
+
+Now, let's add one more benchmark to the list and see if we gained any benefits for all these hassles:
+
+```
+| Method               | Results | Mean         | Error      | StdDev     | Allocated     |
+|--------------------- |-------- |-------------:|-----------:|-----------:|--------------:|
+| InnerDictionary      | 1000    |    14.391 ms |  0.2778 ms |  0.3199 ms |   30289.07 KB |
+| OuterDictionary      | 1000    |    12.978 ms |  0.2481 ms |  0.2437 ms |      30.29 KB |
+| SparseDictionary     | 1000    |     9.399 ms |  0.1531 ms |  0.1432 ms |      43.06 KB |
+| GenerationDictionary | 1000    |     6.990 ms |  0.1262 ms |  0.1181 ms |      39.12 KB |
+| InnerDictionary      | 10000   |   143.160 ms |  2.1777 ms |  1.9305 ms |  302890.72 KB |
+| OuterDictionary      | 10000   |   132.859 ms |  2.1741 ms |  1.9273 ms |      30.39 KB |
+| SparseDictionary     | 10000   |    95.613 ms |  1.4979 ms |  1.4012 ms |      43.13 KB |
+| GenerationDictionary | 10000   |    73.540 ms |  1.4682 ms |  2.6098 ms |      39.17 KB |
+| InnerDictionary      | 100000  | 1,469.565 ms | 18.4316 ms | 17.2409 ms | 3028906.64 KB |
+| OuterDictionary      | 100000  | 1,284.033 ms | 24.5744 ms | 30.1796 ms |      30.68 KB |
+| SparseDictionary     | 100000  |   981.956 ms | 19.0033 ms | 17.7757 ms |      43.45 KB |
+| GenerationDictionary | 100000  |   744.494 ms | 14.0887 ms | 14.4680 ms |      39.51 KB |
+```
+
+As it turns out, we did. In addition to time reduction we also saved a bit more memory due to using only one array.
+
 # Conclusion
 
-Of course, the `SparseDictionary` can't serve as a drop-in replacement for a regular `Dictionary`. The built-in class is way more versatile, highly optimized, and covers a wide range of use cases. However, there may be situations, as mentioned at the beginning of the post, where alternatives like `SparseDictionary` could be considered.
+Of course, `SparseDictionary` or `GenerationDictionary` can't serve as a drop-in replacement for the regular `Dictionary`. The built-in class is way more versatile, highly optimized, and covers a wide range of use cases. However, there may be situations, as mentioned at the beginning of the post, where alternatives like the ones we explored in this post could be considered.
 
 As it often happens in software development, even teeny-weeny problems like this rarely have clear-cut solutions, instead they have trade-offs. It is, however, good to know that there are various options to choose from. Once again, the old saying holds true: don't trust someone else's benchmarks, rely on your own performance measurements.
 
-You can check out the code from this post on GitHub: [SparseDictionary](https://github.com/timiskhakov/SparseDictionary).
-
-# Further Reading
-
-- [Generations-based array](https://www.quasilyte.dev/blog/post/gen-map/)
+You can check out the code from this post on GitHub: [SparseSets](https://github.com/timiskhakov/SparseSets).
