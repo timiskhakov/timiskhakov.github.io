@@ -1,9 +1,5 @@
 title: Timur Iskhakov
-email: timiskhakov@gmail.com
-baseurl: ""
 url: "https://timiskhakov.github.io"
-github_username: timiskhakov
-linkedin_username: timiskhakov
 
 theme: minima
 show_excerpts: true
