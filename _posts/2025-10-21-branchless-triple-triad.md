@@ -301,7 +301,7 @@ That was a long ride, but now we see that we went from doing multiple `if` state
 
 In addition, the branchless approach might be a bit faster in theory, but let's be honest, with only four elements to process, it's barely going to matter.
 
-You can check out the code from this post on GitHub: [BranchlessTripleTriad]().
+You can check out the code from this post on GitHub: [BranchlessTripleTriad](https://github.com/timiskhakov/BranchlessTripleTriad).
 
 # Footnotes
 
