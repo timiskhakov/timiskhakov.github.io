@@ -1,0 +1,40 @@
+baseURL: "https://timiskhakov.github.io"
+languageCode: "en-us"
+title: "Timur Iskhakov"
+theme: "hugo-bearclub"
+
+pagination:
+  pagerSize: 10
+
+markup:
+  highlight:
+    style: github-dark
+  goldmark:
+    renderer:
+      unsafe: true
+    extensions:
+      passthrough:
+        delimiters:
+          block:
+            - - $$
+              - $$
+
+outputFormats:
+  RSS:
+    baseName: feed
+
+params:
+  dateFormat: "Jan 02, 2006"
+
+menu:
+  main:
+    - name: "Home"
+      url: "/"
+      weight: 1
+    - name: "GitHub"
+      url: "https://github.com/timiskhakov"
+      weight: 2
+
+services:
+  googleAnalytics:
+    id: G-2W4V8FC8P8

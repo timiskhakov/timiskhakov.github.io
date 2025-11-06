@@ -1,0 +1,3 @@
+[submodule "themes/hugo-bearclub"]
+	path = themes/hugo-bearclub
+	url = git@github.com:clente/hugo-bearcub.git
