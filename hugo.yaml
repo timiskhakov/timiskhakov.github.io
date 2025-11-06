@@ -38,3 +38,7 @@ menu:
 services:
   googleAnalytics:
     id: G-2W4V8FC8P8
+
+caches:
+  images:
+    dir: :cacheDir/images
