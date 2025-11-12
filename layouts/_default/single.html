@@ -10,7 +10,7 @@
   {{ if .Params.tags }}
   <div class="post-tags">
     {{ range .Params.tags }}
-    <a href="{{ "/tags/" | relURL }}{{ . | urlize }}" class="tag">{{ . }}</a>
+    <div class="tag">{{ . }}</div>
     {{ end }}
   </div>
   {{ end }}
